@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StayEase | Find Your Perfect Stay</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27><text y=%2728%27 font-size=%2728%27>🏨</text></svg>">
+
+    <link rel="stylesheet" href="/assets/style.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for Reports & Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+
+    <!-- Navigation Bar -->
+    <header class="navbar no-print" id="siteNavbar">
+
+        <a href="#" class="logo" onclick="showSection('home'); return false;">Stay<span>Ease.</span></a>
+
+        <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+        </button>
+
+        <nav id="navMenu">
+            <a href="#" onclick="showSection('home'); return false;">Home</a>
+            <a href="#" onclick="showSection('rooms'); return false;">Explore Rooms</a>
+            <a href="#" onclick="showSection('about'); return false;">About Us</a>
+            <a href="#" onclick="showSection('contact'); return false;">Contact</a>
+            <a href="#" id="myBookingsLink" class="hidden" onclick="showSection('my-bookings'); return false;">My Bookings</a>
+            <a href="#" id="adminLink" class="hidden" onclick="showSection('admin'); return false;">Admin Portal</a>
+            <a href="/docs" target="_blank" class="api-docs-link">API Docs ↗</a>
+        </nav>
+
+        <div class="nav-buttons" id="navButtons">
+            <button class="login-btn" onclick="openAuth('login')">Sign In</button>
+            <button class="signup-btn" onclick="openAuth('register')">Book a Room</button>
+        </div>
+
+    </header>
+
+
+    <!-- Hero Section -->
+    <section class="hero home-section no-print" id="home">
+
+        <div class="hero-overlay"></div>
+
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span>✦</span> WELCOME TO STAYEASE LUXURY HOTEL & SUITES
+                </div>
+
+                <h1>Your Exclusive Sanctuary<br>
+                    <span>Of Serenity & Comfort.</span>
+                </h1>
+
+                <p>
+                    Immerse yourself in world-class hospitality, thoughtfully designed suites,
+                    and effortless reservation management. Verified real-time availability powered by high-performance cloud technology.
+                </p>
+
+                <div class="hero-ctas">
+                    <a href="#" class="primary-btn hero-cta-btn" onclick="showSection('rooms'); return false;">
+                        Explore Suites & Rooms ↓
+                    </a>
+                    <a href="#" class="secondary-btn hero-secondary-btn" onclick="showSection('about'); return false;">
+                        Our Story & Amenities →
+                    </a>
+                </div>
+
+                <div class="hero-trust-bar">
+                    <div class="trust-item">
+                        <span class="trust-icon">✓</span>
+                        <span>100% Live Availability</span>
+                    </div>
+                    <div class="trust-item">
+                        <span class="trust-icon">✓</span>
+                        <span>Best Rate Guarantee</span>
+                    </div>
+                    <div class="trust-item">
+                        <span class="trust-icon">✓</span>
+                        <span>Instant Digital Confirmation</span>
+                    </div>
+                    <div class="trust-item">
+                        <span class="trust-icon">✓</span>
+                        <span>Flexible Cancellation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- Floating Quick Search & Filter Section -->
+    <section class="search-section home-section no-print">
+
+        <div class="search-box">
+
+            <div class="search-field">
+                <span class="field-icon">📅</span>
+                <div>
+                    <label>CHECK-IN</label>
+                    <input type="date" id="checkIn">
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="field-icon">📅</span>
+                <div>
+                    <label>CHECK-OUT</label>
+                    <input type="date" id="checkOut">
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="field-icon">🛏️</span>
+                <div>
+                    <label>ROOM CATEGORY</label>
+                    <select id="roomFilter">
+                        <option value="">All Categories</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Deluxe">Deluxe</option>
+                        <option value="Suite">Suite</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="field-icon">👥</span>
+                <div>
+                    <label>GUESTS</label>
+                    <select id="guestFilter">
+                        <option value="">Any Capacity</option>
+                        <option value="1">1+ Guest</option>
+                        <option value="2">2+ Guests</option>
+                        <option value="3">3+ Guests</option>
+                        <option value="4">4+ Guests</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-field search-price-field">
+                <span class="field-icon">💰</span>
+                <div>
+                    <label>PRICE RANGE (₹)</label>
+                    <div class="price-inputs-row">
+                        <input type="number" id="minPriceFilter" placeholder="Min ₹" min="0" step="500">
+                        <span>–</span>
+                        <input type="number" id="maxPriceFilter" placeholder="Max ₹" min="0" step="500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-actions">
+                <button onclick="searchRooms()" class="search-btn" id="searchRoomsBtn">
+                    🔍 Check Availability
+                </button>
+                <button onclick="resetSearch()" class="reset-btn" title="Reset all search filters">
+                    Reset
+                </button>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- STEP 1: Rooms Listing Section -->
+    <section class="rooms-section home-section no-print" id="rooms">
+
+        <div class="section-heading">
+            <div>
+                <span class="tagline">CURATED LUXURY</span>
+                <h2>Explore Our Exquisite Suites & Rooms</h2>
+                <p>Every room is designed for sublime comfort, quiet relaxation, and effortless convenience.</p>
+            </div>
+
+            <!-- Quick Category Filter Pills -->
+            <div class="category-filter-pills">
+                <button class="cat-pill active" onclick="quickFilterCategory('', this)">All Suites</button>
+                <button class="cat-pill" onclick="quickFilterCategory('Standard', this)">Standard</button>
+                <button class="cat-pill" onclick="quickFilterCategory('Deluxe', this)">Deluxe</button>
+                <button class="cat-pill" onclick="quickFilterCategory('Suite', this)">Executive Suite</button>
+            </div>
+        </div>
+
+        <div class="rooms-grid" id="roomsContainer">
+            <p class="empty-state">Loading available rooms...</p>
+        </div>
+
+    </section>
+
+
+    <!-- About Section: Luxury Story & Facilities -->
+    <section class="about-section home-section no-print" id="about">
+
+        <div class="about-container">
+            <div class="about-story">
+                <span class="tagline">A TRADITION OF EXCELLENCE</span>
+                <h2>Timeless Hospitality Crafted For The Modern Traveler</h2>
+                <p class="about-lead">
+                    Nestled in the prime central district, StayEase redefines luxury lodging by blending
+                    classical comfort with frictionless modern reservations.
+                </p>
+                <p>
+                    Whether you are traveling for executive business or a serene weekend retreat, our suites feature
+                    handcrafted furnishings, hypoallergenic bedding, and en-suite spa bathrooms. Every detail is curated
+                    for your tranquility.
+                </p>
+
+                <!-- Metrics Strip -->
+                <div class="about-stats-grid">
+                    <div class="about-stat">
+                        <h3>100%</h3>
+                        <p>Verified Live Availability</p>
+                    </div>
+                    <div class="about-stat">
+                        <h3>4.9★</h3>
+                        <p>Guest Experience Rating</p>
+                    </div>
+                    <div class="about-stat">
+                        <h3>24/7</h3>
+                        <p>Personalized Concierge</p>
+                    </div>
+                    <div class="about-stat">
+                        <h3>0s</h3>
+                        <p>Instant Digital Invoicing</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signature Amenities Grid -->
+            <div class="about-amenities-wrap">
+                <span class="tagline">SIGNATURE FACILITIES</span>
+                <h3>World-Class Guest Services</h3>
+
+                <div class="amenities-feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🛎️</div>
+                        <div>
+                            <h4>24/7 Royal Concierge</h4>
+                            <p>Private check-ins, custom city itineraries, and immediate assistance whenever needed.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🍽️</div>
+                        <div>
+                            <h4>Gourmet In-Room Dining</h4>
+                            <p>Masterfully prepared artisanal breakfast and multi-cuisine dinners delivered to your suite.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🏊</div>
+                        <div>
+                            <h4>Skyline Infinity Pool & Spa</h4>
+                            <p>Temperature-controlled panoramic swimming pool, steam sauna, and restorative massage suites.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div>
+                            <h4>Enterprise-Grade Security</h4>
+                            <p>Encrypted authentication with Argon2 hashing and instant transaction verification.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- Contact & Inquiries Section -->
+    <section class="contact-section home-section no-print" id="contact">
+
+        <div class="section-heading">
+            <div>
+                <span class="tagline">GET IN TOUCH</span>
+                <h2>Connect With Our Concierge</h2>
+                <p>Have special requests or questions regarding your stay? Our dedicated team is available 24/7.</p>
+            </div>
+        </div>
+
+        <div class="contact-container">
+            <!-- Contact Details Card -->
+            <div class="contact-info-card">
+                <h3>Hotel Contact & Concierge</h3>
+                <p class="contact-subtext">Direct assistance for reservations, special event bookings, and corporate arrangements.</p>
+
+                <div class="contact-details-list">
+                    <div class="contact-item">
+                        <span class="c-icon">📍</span>
+                        <div>
+                            <strong>Property Address</strong>
+                            <p>124 Luxury Boulevard, Central District, New Delhi, 110001</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-item">
+                        <span class="c-icon">📞</span>
+                        <div>
+                            <strong>Direct Concierge Desk</strong>
+                            <p>+91 98765 43210 (24 Hours Toll-Free)</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-item">
+                        <span class="c-icon">✉️</span>
+                        <div>
+                            <strong>Email Inquiries</strong>
+                            <p>concierge@stayease.com • contact@stayease.com</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-item">
+                        <span class="c-icon">🕒</span>
+                        <div>
+                            <strong>Timings</strong>
+                            <p>Standard Check-in: 14:00 | Standard Check-out: 11:00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concierge-badge">
+                    <span>👑</span>
+                    <div>
+                        <strong>Instant Front-Desk Dispatch</strong>
+                        <small>Average response time under 10 minutes</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inquiries Form -->
+            <div class="contact-form-card">
+                <h3>Send Us an Inquiry</h3>
+                <form id="contactForm" onsubmit="submitContactForm(event)">
+                    <div class="form-row-2">
+                        <div>
+                            <label>Your Full Name</label>
+                            <input type="text" id="contactName" placeholder="e.g. Vikram Sharma" required>
+                        </div>
+                        <div>
+                            <label>Email Address</label>
+                            <input type="email" id="contactEmail" placeholder="e.g. vikram@example.com" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label>Subject</label>
+                        <input type="text" id="contactSubject" placeholder="e.g. Room preference or airport pickup inquiry" required>
+                    </div>
+
+                    <div>
+                        <label>Message / Special Request</label>
+                        <textarea id="contactMessage" rows="4" placeholder="How may our concierge assist your upcoming visit?" required></textarea>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="contactSubmitBtn">
+                        ✉️ Submit Inquiry
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- STEP 7: My Bookings Section -->
+    <section class="my-bookings-section hidden no-print" id="myBookingsSection">
+
+        <div class="section-heading">
+            <div>
+                <span class="tagline">YOUR RESERVATIONS</span>
+                <h2>My Bookings</h2>
+                <p>View, manage, pay for, and cancel your hotel reservations.</p>
+            </div>
+        </div>
+
+        <!-- Filter Tabs for Bookings -->
+        <div class="bookings-tabs">
+            <button class="booking-tab-btn active" onclick="filterMyBookings('all', this)">All Bookings</button>
+            <button class="booking-tab-btn" onclick="filterMyBookings('upcoming', this)">Upcoming</button>
+            <button class="booking-tab-btn" onclick="filterMyBookings('completed', this)">Completed</button>
+            <button class="booking-tab-btn" onclick="filterMyBookings('cancelled', this)">Cancelled</button>
+        </div>
+
+        <div class="bookings-list" id="bookingsList">
+            <p class="empty-state">Loading your bookings...</p>
+        </div>
+
+    </section>
+
+
+    <!-- Admin Dashboard Section -->
+    <section class="admin-section hidden no-print" id="adminSection">
+
+        <div class="admin-dashboard-container">
+
+            <!-- Professional Admin Sidebar -->
+            <aside class="admin-sidebar">
+                <div class="admin-sidebar-header">
+                    <span class="admin-brand-icon">🏨</span>
+                    <div>
+                        <h3>Stay<span>Ease.</span></h3>
+                        <span class="admin-badge-pill">Admin Portal</span>
+                    </div>
+                </div>
+
+                <nav class="admin-sidebar-nav">
+                    <a href="#" class="admin-nav-item active" onclick="switchAdminView('overview', this); return false;">
+                        <span class="nav-icon">📊</span> Overview
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('rooms', this); return false;">
+                        <span class="nav-icon">🛏️</span> Room Management
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('bookings', this); return false;">
+                        <span class="nav-icon">📅</span> Reservations
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('customers', this); return false;">
+                        <span class="nav-icon">👥</span> Customer Accounts
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('staff', this); return false;">
+                        <span class="nav-icon">👔</span> Staff Directory
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('housekeeping', this); return false;">
+                        <span class="nav-icon">🧹</span> Housekeeping
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('payments', this); return false;">
+                        <span class="nav-icon">💳</span> Payment Records
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('analytics', this); return false;">
+                        <span class="nav-icon">📈</span> Reports & Analytics
+                    </a>
+                    <a href="#" class="admin-nav-item" onclick="switchAdminView('settings', this); return false;">
+                        <span class="nav-icon">⚙️</span> Hotel Settings
+                    </a>
+                </nav>
+
+                <div class="admin-sidebar-footer">
+                    <button class="back-to-site-btn" onclick="showSection('home')">
+                        ← Back to Public Website
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Admin Content Area -->
+            <main class="admin-main-content">
+
+                <!-- Top Navigation Bar -->
+                <header class="admin-topbar">
+                    <div class="admin-topbar-left">
+                        <h2 id="adminViewTitle">Dashboard Overview</h2>
+                        <span class="admin-hotel-tag" id="adminHotelBadge">StayEase Hotel & Luxury Suites</span>
+                    </div>
+
+                    <div class="admin-topbar-right">
+                        <button class="admin-refresh-btn" onclick="refreshCurrentAdminView()" title="Refresh database records">
+                            🔄 Refresh
+                        </button>
+                        <div class="admin-user-pill">
+                            <span class="admin-avatar">👤</span>
+                            <div>
+                                <strong id="adminUserName">Administrator</strong>
+                                <small>Full Access</small>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- ============================================== -->
+                <!-- MODULE 0: DASHBOARD OVERVIEW                   -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel active" id="admin-view-overview">
+                    <!-- 8 Database Summary Metrics -->
+                    <div class="admin-stats-overview" id="adminOverviewStatsGrid">
+                        <!-- Populated by JavaScript with 8 DB statistics -->
+                        <div class="admin-stat-card"><div class="stat-spinner"></div></div>
+                    </div>
+
+                    <!-- Occupancy Quick Gauge Banner -->
+                    <div class="overview-occupancy-banner" id="overviewOccupancyBanner">
+                        <div class="occupancy-info">
+                            <h4>Real-Time Room Occupancy</h4>
+                            <p id="overviewOccupancyText">Calculating active reservations today...</p>
+                        </div>
+                        <div class="occupancy-progress-bar">
+                            <div class="occupancy-fill" id="overviewOccupancyFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Bookings Quick Table -->
+                    <div class="admin-panel-card">
+                        <div class="panel-card-header">
+                            <div>
+                                <h3>Recent Guest Reservations</h3>
+                                <p>Latest booking activity recorded in the PostgreSQL database.</p>
+                            </div>
+                            <button class="secondary-btn small" onclick="switchAdminView('bookings')">View All Reservations →</button>
+                        </div>
+                        <div class="admin-table-wrapper">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Booking Ref</th>
+                                        <th>Guest Name</th>
+                                        <th>Room</th>
+                                        <th>Check-in → Check-out</th>
+                                        <th>Total</th>
+                                        <th>Payment</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overviewRecentBookingsBody">
+                                    <tr><td colspan="7" class="empty-state">Loading recent bookings...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 1: ROOM MANAGEMENT                      -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-rooms">
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminRoomSearch" placeholder="Search room number or description..." oninput="filterAdminRoomsTable()">
+                            <select id="adminRoomTypeFilter" onchange="filterAdminRoomsTable()">
+                                <option value="">All Categories</option>
+                                <option value="Standard">Standard</option>
+                                <option value="Deluxe">Deluxe</option>
+                                <option value="Suite">Suite</option>
+                            </select>
+                            <select id="adminRoomStatusFilter" onchange="filterAdminRoomsTable()">
+                                <option value="">All Reservation Statuses</option>
+                                <option value="Available">Available</option>
+                                <option value="Occupied">Occupied</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                        <button class="primary-btn small" onclick="openAddRoom()">+ Add New Room</button>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Room #</th>
+                                    <th>Category</th>
+                                    <th>Price / Night</th>
+                                    <th>Capacity</th>
+                                    <th>Reservation Status</th>
+                                    <th>Housekeeping Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminRoomsBody">
+                                <tr><td colspan="7" class="empty-state">Loading rooms catalog...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 2: BOOKING MANAGEMENT                   -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-bookings">
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminBookingSearch" placeholder="Search booking ref (e.g. SE-BK-0001) or customer name/email..." oninput="debounceAdminBookingSearch()">
+                            <select id="adminBookingStatusFilter" onchange="loadAdminBookings()">
+                                <option value="">All Statuses</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Booking Ref</th>
+                                    <th>Guest Details</th>
+                                    <th>Room</th>
+                                    <th>Dates</th>
+                                    <th>Guests</th>
+                                    <th>Total Amount</th>
+                                    <th>Payment Status</th>
+                                    <th>Booking Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminBookingsBody">
+                                <tr><td colspan="9" class="empty-state">Loading all reservations...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 3: CUSTOMER MANAGEMENT                  -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-customers">
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminCustomerSearch" placeholder="Search customer name, email, or phone..." oninput="debounceAdminCustomerSearch()">
+                        </div>
+                        <span class="toolbar-hint">🔒 Passwords securely hashed with Argon2 — never displayed or exposed.</span>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Email Address</th>
+                                    <th>Phone</th>
+                                    <th>Role</th>
+                                    <th>Account Status</th>
+                                    <th>Total Bookings</th>
+                                    <th>Registered Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminCustomersBody">
+                                <tr><td colspan="9" class="empty-state">Loading customer accounts...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 4: STAFF MANAGEMENT                     -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-staff">
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminStaffSearch" placeholder="Search staff name or designation..." oninput="filterAdminStaffTable()">
+                        </div>
+                        <button class="primary-btn small" onclick="openAddStaff()">+ Add Staff Member</button>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Designation</th>
+                                    <th>Duty Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminStaffBody">
+                                <tr><td colspan="7" class="empty-state">Loading staff directory...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 5: HOUSEKEEPING MODULE                  -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-housekeeping">
+                    <!-- Housekeeping Status Metrics -->
+                    <div class="housekeeping-metric-strip" id="housekeepingMetricStrip">
+                        <div class="hk-metric-box hk-clean">
+                            <span class="hk-metric-count" id="hkCleanCount">0</span>
+                            <span class="hk-metric-label">✨ Clean</span>
+                        </div>
+                        <div class="hk-metric-box hk-dirty">
+                            <span class="hk-metric-count" id="hkDirtyCount">0</span>
+                            <span class="hk-metric-label">🧹 Dirty</span>
+                        </div>
+                        <div class="hk-metric-box hk-cleaning">
+                            <span class="hk-metric-count" id="hkCleaningCount">0</span>
+                            <span class="hk-metric-label">⏳ Cleaning in Progress</span>
+                        </div>
+                        <div class="hk-metric-box hk-maintenance">
+                            <span class="hk-metric-count" id="hkMaintenanceCount">0</span>
+                            <span class="hk-metric-label">🛠️ Maintenance Required</span>
+                        </div>
+                    </div>
+
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminHkSearch" placeholder="Filter by room number or category..." oninput="filterAdminHousekeepingTable()">
+                            <select id="adminHkFilter" onchange="filterAdminHousekeepingTable()">
+                                <option value="">All Cleaning Statuses</option>
+                                <option value="Clean">Clean</option>
+                                <option value="Dirty">Dirty</option>
+                                <option value="Cleaning in Progress">Cleaning in Progress</option>
+                                <option value="Maintenance Required">Maintenance Required</option>
+                            </select>
+                        </div>
+                        <span class="toolbar-hint">ℹ️ Housekeeping status is independent from reservation availability.</span>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Room #</th>
+                                    <th>Category</th>
+                                    <th>Reservation Status</th>
+                                    <th>Current Occupant</th>
+                                    <th>Cleaning Status</th>
+                                    <th>Last Cleaned</th>
+                                    <th>Update Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminHousekeepingBody">
+                                <tr><td colspan="7" class="empty-state">Loading housekeeping room list...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 6: PAYMENT MANAGEMENT                   -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-payments">
+                    <div class="admin-toolbar">
+                        <div class="toolbar-search-group">
+                            <input type="text" id="adminPaymentSearch" placeholder="Search transaction reference, customer, or booking ref..." oninput="debounceAdminPaymentSearch()">
+                            <select id="adminPaymentStatusFilter" onchange="loadAdminPayments()">
+                                <option value="">All Payment Statuses</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Refunded">Refunded</option>
+                            </select>
+                        </div>
+                        <span class="toolbar-hint">💳 Front desk staff can mark pending cash settlements as 'Completed'.</span>
+                    </div>
+
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Tx ID</th>
+                                    <th>Booking Ref</th>
+                                    <th>Customer</th>
+                                    <th>Room</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Transaction Ref</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminPaymentsBody">
+                                <tr><td colspan="10" class="empty-state">Loading payments...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 7: REPORTS AND ANALYTICS                -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-analytics">
+                    <!-- Top KPI Summary Cards -->
+                    <div class="analytics-kpi-grid">
+                        <div class="analytics-kpi-card">
+                            <span class="kpi-icon">📈</span>
+                            <div>
+                                <h3 id="analyticsOccupancyRate">0%</h3>
+                                <p>Room Occupancy Rate Today</p>
+                            </div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <span class="kpi-icon">💰</span>
+                            <div>
+                                <h3 id="analyticsTotalRevenue">₹0</h3>
+                                <p>Total Completed Revenue</p>
+                            </div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <span class="kpi-icon">👥</span>
+                            <div>
+                                <h3 id="analyticsTotalGuests">0</h3>
+                                <p>Registered Customers</p>
+                            </div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <span class="kpi-icon">🔁</span>
+                            <div>
+                                <h3 id="analyticsRepeatGuests">0</h3>
+                                <p>Repeat Customers (Multiple Bookings)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="analytics-charts-grid">
+                        <!-- Chart 1: Monthly Bookings & Revenue Trend -->
+                        <div class="chart-container-card chart-large">
+                            <div class="chart-header">
+                                <h4>Monthly Revenue & Bookings Trend</h4>
+                                <span class="chart-subtitle">Real-time data from database over the last 6 months</span>
+                            </div>
+                            <div class="chart-canvas-wrapper">
+                                <canvas id="monthlyTrendChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart 2: Popular Room Categories -->
+                        <div class="chart-container-card">
+                            <div class="chart-header">
+                                <h4>Popular Room Categories</h4>
+                                <span class="chart-subtitle">Bookings count by room category</span>
+                            </div>
+                            <div class="chart-canvas-wrapper">
+                                <canvas id="popularCategoriesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart 3: Housekeeping Cleanliness Status -->
+                        <div class="chart-container-card">
+                            <div class="chart-header">
+                                <h4>Housekeeping Cleanliness</h4>
+                                <span class="chart-subtitle">Distribution across all rooms</span>
+                            </div>
+                            <div class="chart-canvas-wrapper">
+                                <canvas id="housekeepingChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- MODULE 8: HOTEL SETTINGS                       -->
+                <!-- ============================================== -->
+                <div class="admin-view-panel" id="admin-view-settings">
+                    <div class="settings-form-container">
+                        <div class="settings-header">
+                            <h3>Hotel Configuration & Policies</h3>
+                            <p>Manage property identity, contact channels, standard timings, and policies stored in the database.</p>
+                        </div>
+
+                        <form id="hotelSettingsForm" onsubmit="saveHotelSettings(event)">
+                            <div class="form-row-2">
+                                <div>
+                                    <label>Hotel Name</label>
+                                    <input type="text" id="setHotelName" required placeholder="e.g. StayEase Hotel & Luxury Suites">
+                                </div>
+                                <div>
+                                    <label>Contact Email</label>
+                                    <input type="email" id="setContactEmail" required placeholder="contact@stayease.com">
+                                </div>
+                            </div>
+
+                            <div class="form-row-2">
+                                <div>
+                                    <label>Contact Phone</label>
+                                    <input type="tel" id="setContactPhone" required placeholder="+91 98765 43210">
+                                </div>
+                                <div>
+                                    <label>Hotel Address</label>
+                                    <input type="text" id="setHotelAddress" required placeholder="124 Luxury Boulevard, New Delhi">
+                                </div>
+                            </div>
+
+                            <div class="form-row-2">
+                                <div>
+                                    <label>Check-in Time (24h)</label>
+                                    <input type="text" id="setCheckInTime" required placeholder="14:00">
+                                </div>
+                                <div>
+                                    <label>Check-out Time (24h)</label>
+                                    <input type="text" id="setCheckOutTime" required placeholder="11:00">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label>Cancellation Policy</label>
+                                <textarea id="setCancellationPolicy" rows="3" required placeholder="Cancellation policy description..."></textarea>
+                            </div>
+
+                            <div class="settings-actions">
+                                <button type="submit" class="primary-btn" id="saveSettingsBtn">
+                                    💾 Save Hotel Settings
+                                </button>
+                                <span class="settings-last-updated" id="settingsLastUpdated"></span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- MODALS SECTION                             -->
+    <!-- ========================================== -->
+
+    <!-- STEP 3: Room Details Modal -->
+    <div class="modal no-print" id="roomDetailsModal">
+
+        <div class="modal-content modal-large">
+            <button class="close-btn" onclick="closeRoomDetails()">×</button>
+
+            <div class="room-details-layout">
+                <div class="room-details-media">
+                    <img id="detailRoomImage" src="" alt="Room Photo">
+                    <span class="room-badge" id="detailRoomBadge">Deluxe</span>
+                </div>
+
+                <div class="room-details-body">
+                    <h2 id="detailRoomTitle">Deluxe Room</h2>
+                    <p class="room-number-tag" id="detailRoomNumber">Room 201</p>
+                    <p class="room-description" id="detailRoomDescription"></p>
+
+                    <div class="amenities-container">
+                        <h4>Included Amenities</h4>
+                        <div class="amenities-grid" id="detailRoomAmenities"></div>
+                    </div>
+
+                    <div class="room-booking-quickform">
+                        <div class="quickform-dates">
+                            <div>
+                                <label>Check-in</label>
+                                <input type="date" id="detailCheckIn" onchange="updateDetailPrice()">
+                            </div>
+                            <div>
+                                <label>Check-out</label>
+                                <input type="date" id="detailCheckOut" onchange="updateDetailPrice()">
+                            </div>
+                            <div>
+                                <label>Guests</label>
+                                <select id="detailGuests"></select>
+                            </div>
+                        </div>
+
+                        <div class="price-summary-box">
+                            <div>
+                                <span class="rate-label">Nightly Rate</span>
+                                <span class="rate-value" id="detailNightlyRate">₹0</span>
+                            </div>
+                            <div>
+                                <span class="rate-label">Estimated Total</span>
+                                <span class="rate-total" id="detailEstimatedTotal">Select dates</span>
+                            </div>
+                        </div>
+
+                        <button class="submit-btn" id="proceedFromDetailBtn" onclick="proceedToBookingReview()">
+                            Proceed to Book →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- STEP 4: Authentication Modal (Login / Register) -->
+    <div class="modal no-print" id="authModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeAuth()">×</button>
+
+            <h2 id="authTitle">Welcome Back</h2>
+            <p id="authDescription">Login to continue your journey.</p>
+            <p id="authNotice" class="auth-notice hidden"></p>
+            <div id="authErrorAlert" class="auth-error-alert hidden"></div>
+
+            <form id="authForm">
+
+                <div id="nameField" class="hidden">
+                    <label>Full Name</label>
+                    <input type="text" id="name" placeholder="Enter your full name">
+                </div>
+
+                <label>Email Address</label>
+                <input type="email" id="email" placeholder="e.g. guest@example.com" required>
+
+                <label>Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="password" placeholder="Enter password (min 8 chars)" required oninput="checkPasswordStrength()">
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)" title="Show / Hide Password" aria-label="Toggle password visibility">👁️</button>
+                </div>
+
+                <div id="passwordStrength" class="password-strength hidden">
+                    <div class="strength-bar" id="strengthBar"></div>
+                    <span class="strength-text" id="strengthText"></span>
+                </div>
+
+                <div id="phoneField" class="hidden">
+                    <label>Phone Number</label>
+                    <input type="tel" id="phone" placeholder="e.g. +91 98765 43210">
+                </div>
+
+                <button type="submit" class="submit-btn" id="authSubmitBtn">
+                    <span class="btn-text">Continue</span>
+                </button>
+
+            </form>
+
+            <p class="switch-auth" id="switchText">
+                Don't have an account? <a href="#" onclick="switchAuth(event)">Register</a>
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- STEP 5: Booking Review & Confirmation Modal -->
+    <div class="modal no-print" id="bookingConfirmModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeBookingConfirm()">×</button>
+
+            <h2>Review & Confirm Booking</h2>
+            <p>Please verify your reservation details before confirming.</p>
+
+            <div class="confirm-review-card">
+                <div class="review-row">
+                    <span class="review-label">Guest Name</span>
+                    <strong class="review-val" id="reviewCustomerName">-</strong>
+                </div>
+                <div class="review-row">
+                    <span class="review-label">Room</span>
+                    <strong class="review-val" id="reviewRoomName">-</strong>
+                </div>
+                <div class="review-row">
+                    <span class="review-label">Dates</span>
+                    <span class="review-val" id="reviewDates">-</span>
+                </div>
+                <div class="review-row">
+                    <span class="review-label">Duration</span>
+                    <span class="review-val" id="reviewNights">-</span>
+                </div>
+                <div class="review-row">
+                    <span class="review-label">Guests</span>
+                    <span class="review-val" id="reviewGuests">-</span>
+                </div>
+                <div class="review-row">
+                    <span class="review-label">Nightly Rate</span>
+                    <span class="review-val" id="reviewNightlyPrice">-</span>
+                </div>
+                <div class="review-row review-total-row">
+                    <span class="review-label">Total Amount</span>
+                    <strong class="review-val-total" id="reviewTotalPrice">₹0</strong>
+                </div>
+            </div>
+
+            <div class="confirm-payment-option">
+                <label>Select Payment Option</label>
+                <select id="confirmPaymentMethod">
+                    <option value="Demo Online Payment">Demo Online Payment (Instant simulation)</option>
+                    <option value="Cash at hotel">Cash at hotel (Pay upon check-in)</option>
+                </select>
+            </div>
+
+            <div class="confirm-actions">
+                <button type="button" class="back-btn" onclick="backToRoomDetails()">← Back</button>
+                <button type="button" class="submit-btn" id="finalConfirmBookingBtn" onclick="submitFinalBooking()">
+                    Confirm Reservation
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- STEP 6: Booking Success Modal -->
+    <div class="modal no-print" id="bookingSuccessModal">
+
+        <div class="modal-content success-modal-content">
+            <div class="success-icon-badge">✓</div>
+            <h2>Reservation Confirmed!</h2>
+            <p>Thank you for choosing StayEase. Your room has been reserved.</p>
+
+            <div class="success-ref-box">
+                <span>Booking Reference</span>
+                <strong id="successBookingRef">SE-BK-0001</strong>
+            </div>
+
+            <div class="success-summary" id="successSummaryContent"></div>
+
+            <div class="success-actions">
+                <button class="primary-btn" onclick="openInvoiceFromSuccess()">
+                    🧾 View & Print Invoice
+                </button>
+                <button class="secondary-btn" onclick="viewBookingsFromSuccess()">
+                    📋 Go to My Bookings
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- STEP 8: Printable Invoice Modal -->
+    <div class="modal" id="invoiceModal">
+
+        <div class="modal-content invoice-modal-content">
+            <button class="close-btn no-print" onclick="closeInvoice()">×</button>
+
+            <!-- Printable Invoice Card -->
+            <div class="invoice-paper" id="invoicePaper">
+
+                <div class="invoice-header">
+                    <div>
+                        <h1 class="invoice-logo">Stay<span>Ease.</span></h1>
+                        <p class="invoice-tagline">Hotel & Luxury Suites</p>
+                        <p class="invoice-subtext">124 Luxury Boulevard, Central District</p>
+                        <p class="invoice-subtext">support@stayease.com • +91 98765 43210</p>
+                    </div>
+                    <div class="invoice-meta">
+                        <h2>INVOICE</h2>
+                        <p><strong>Invoice #:</strong> <span id="invNumber">INV-2026-00001</span></p>
+                        <p><strong>Booking Ref:</strong> <span id="invRef">SE-BK-0001</span></p>
+                        <p><strong>Issue Date:</strong> <span id="invDate">November 23, 2026</span></p>
+                        <p><strong>Status:</strong> <span class="status-badge status-confirmed" id="invPaymentStatus">Paid</span></p>
+                    </div>
+                </div>
+
+                <div class="invoice-parties">
+                    <div class="invoice-col">
+                        <h4>BILLED TO</h4>
+                        <p><strong id="invCustName">Guest Name</strong></p>
+                        <p id="invCustEmail">guest@example.com</p>
+                        <p id="invCustPhone">+91 98765 43210</p>
+                    </div>
+                    <div class="invoice-col">
+                        <h4>RESERVATION DETAILS</h4>
+                        <p><strong>Room:</strong> <span id="invRoom">Room 101 (Standard)</span></p>
+                        <p><strong>Check-in:</strong> <span id="invCheckIn">2026-12-01</span> (from 2:00 PM)</p>
+                        <p><strong>Check-out:</strong> <span id="invCheckOut">2026-12-04</span> (until 11:00 AM)</p>
+                        <p><strong>Guests:</strong> <span id="invGuests">2</span></p>
+                    </div>
+                </div>
+
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Nightly Rate</th>
+                            <th>Duration</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong id="invItemDesc">Standard Room Accommodation</strong><br>
+                                <small style="color:#777;">Includes complimentary WiFi, breakfast & amenities</small>
+                            </td>
+                            <td id="invItemRate">₹1,800</td>
+                            <td id="invItemNights">3 Nights</td>
+                            <td id="invItemAmount">₹5,400</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-right"><strong>Subtotal:</strong></td>
+                            <td id="invSubtotal">₹5,400</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="text-right">Taxes & Service Charges:</td>
+                            <td>₹0.00 (Inclusive)</td>
+                        </tr>
+                        <tr class="grand-total-row">
+                            <td colspan="3" class="text-right"><strong>Total Amount:</strong></td>
+                            <td id="invGrandTotal"><strong>₹5,400</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="invoice-footer">
+                    <p><strong>Payment Method:</strong> <span id="invPayMethod">Demo Online Payment</span> | <strong>Tx Ref:</strong> <span id="invTxRef">DEMO-A1B2C3D4</span></p>
+                    <p class="invoice-thankyou">Thank you for staying with StayEase! We look forward to welcoming you.</p>
+                </div>
+
+            </div>
+
+            <!-- Invoice Modal Actions -->
+            <div class="invoice-actions no-print">
+                <button class="primary-btn" onclick="printInvoice()">
+                    🖨️ Print / Save as PDF
+                </button>
+                <button class="secondary-btn" onclick="closeInvoice()">
+                    Close
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Customer Profile Modal -->
+    <div class="modal no-print" id="profileModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeProfileModal()">×</button>
+
+            <h2>My Profile</h2>
+            <p>View and update your personal details.</p>
+
+            <form id="profileForm">
+                <label>Full Name</label>
+                <input type="text" id="profileName" required>
+
+                <label>Email Address</label>
+                <input type="email" id="profileEmail" disabled>
+
+                <label>Phone Number</label>
+                <input type="tel" id="profilePhone" placeholder="+91 98765 43210">
+
+                <label>Role</label>
+                <input type="text" id="profileRole" disabled>
+
+                <button type="submit" class="submit-btn" id="profileSubmitBtn">Save Changes</button>
+            </form>
+        </div>
+
+    </div>
+
+
+    <!-- Demo Payment Simulation Modal -->
+    <div class="modal no-print" id="demoPayModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeDemoPay()">×</button>
+
+            <h2>Simulate Payment</h2>
+            <p id="demoPayDescription">Process demonstration payment.</p>
+
+            <form id="demoPayForm">
+                <input type="hidden" id="demoPayBookingId">
+
+                <label>Payment Method</label>
+                <select id="demoPayMethod">
+                    <option value="Demo Online Payment">Demo Online Payment (Credit Card / UPI)</option>
+                    <option value="Cash at hotel">Cash at Hotel (Front Desk Settlement)</option>
+                </select>
+
+                <label>Simulated Card Number (Demo)</label>
+                <input type="text" value="•••• •••• •••• 4242" disabled>
+
+                <p class="demo-disclaimer">
+                    ℹ️ <strong>College Project Notice:</strong> This is a simulated demonstration transaction. No real credit card or bank is charged.
+                </p>
+
+                <button type="submit" class="submit-btn" id="demoPaySubmitBtn">Process Demo Payment</button>
+            </form>
+        </div>
+
+    </div>
+
+
+    <!-- Add Room Modal (Admin) -->
+    <div class="modal no-print" id="addRoomModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeAddRoom()">×</button>
+
+            <h2>Add New Room</h2>
+
+            <form id="addRoomForm">
+                <label>Room Number</label>
+                <input type="text" id="newRoomNumber" placeholder="e.g. 401" required>
+
+                <label>Room Type</label>
+                <select id="newRoomType" required>
+                    <option value="Standard">Standard</option>
+                    <option value="Deluxe">Deluxe</option>
+                    <option value="Suite">Suite</option>
+                </select>
+
+                <label>Price per Night (₹)</label>
+                <input type="number" id="newRoomPrice" min="1" placeholder="e.g. 2500" required>
+
+                <label>Capacity (Guests)</label>
+                <input type="number" id="newRoomCapacity" min="1" max="10" placeholder="e.g. 2" required>
+
+                <label>Description</label>
+                <textarea id="newRoomDescription" rows="3" placeholder="Room amenities and features"></textarea>
+
+                <label>Image URL (optional)</label>
+                <input type="url" id="newRoomImage" placeholder="https://images.unsplash.com/...">
+
+                <button type="submit" class="submit-btn" id="addRoomSubmitBtn">Add Room</button>
+            </form>
+        </div>
+
+    </div>
+
+
+    <!-- Add Staff Modal (Admin) -->
+    <div class="modal no-print" id="addStaffModal">
+
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeAddStaff()">×</button>
+
+            <h2>Add Hotel Staff</h2>
+
+            <form id="addStaffForm">
+                <label>Staff Name</label>
+                <input type="text" id="newStaffName" placeholder="e.g. Ananya Rao" required>
+
+                <label>Email Address</label>
+                <input type="email" id="newStaffEmail" placeholder="e.g. ananya@stayease.com" required>
+
+                <label>Phone Number</label>
+                <input type="tel" id="newStaffPhone" placeholder="e.g. +91 98765 12345">
+
+                <label>Designation</label>
+                <select id="newStaffDesignation" required>
+                    <option value="Hotel Manager">Hotel Manager</option>
+                    <option value="Front Desk Receptionist">Front Desk Receptionist</option>
+                    <option value="Head of Housekeeping">Head of Housekeeping</option>
+                    <option value="Executive Chef">Executive Chef</option>
+                    <option value="Security Supervisor">Security Supervisor</option>
+                    <option value="Concierge">Concierge</option>
+                </select>
+
+                <label>Status</label>
+                <select id="newStaffStatus" required>
+                    <option value="Active">Active</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+
+                <button type="submit" class="submit-btn" id="addStaffSubmitBtn">Add Staff Member</button>
+            </form>
+        </div>
+
+    </div>
+
+
+    <!-- Edit Room Modal (Admin) -->
+    <div class="modal no-print" id="editRoomModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeEditRoom()">×</button>
+            <h2>Edit Room Details</h2>
+            <form id="editRoomForm" onsubmit="submitEditRoom(event)">
+                <input type="hidden" id="editRoomId">
+
+                <label>Room Number</label>
+                <input type="text" id="editRoomNumber" required>
+
+                <label>Room Category</label>
+                <select id="editRoomType" required>
+                    <option value="Standard">Standard</option>
+                    <option value="Deluxe">Deluxe</option>
+                    <option value="Suite">Suite</option>
+                </select>
+
+                <label>Price per Night (₹)</label>
+                <input type="number" id="editRoomPrice" min="1" required>
+
+                <label>Guest Capacity</label>
+                <input type="number" id="editRoomCapacity" min="1" max="10" required>
+
+                <label>Reservation Status</label>
+                <select id="editRoomStatus" required>
+                    <option value="Available">Available</option>
+                    <option value="Occupied">Occupied</option>
+                    <option value="Maintenance">Maintenance</option>
+                </select>
+
+                <label>Description</label>
+                <textarea id="editRoomDescription" rows="3"></textarea>
+
+                <label>Image URL</label>
+                <input type="url" id="editRoomImage">
+
+                <button type="submit" class="submit-btn" id="editRoomSubmitBtn">Update Room</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Edit Staff Modal (Admin) -->
+    <div class="modal no-print" id="editStaffModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeEditStaff()">×</button>
+            <h2>Edit Staff Member</h2>
+            <form id="editStaffForm" onsubmit="submitEditStaff(event)">
+                <input type="hidden" id="editStaffId">
+
+                <label>Staff Name</label>
+                <input type="text" id="editStaffName" required>
+
+                <label>Email Address</label>
+                <input type="email" id="editStaffEmail" disabled>
+
+                <label>Phone Number</label>
+                <input type="tel" id="editStaffPhone">
+
+                <label>Designation</label>
+                <select id="editStaffDesignation" required>
+                    <option value="Hotel Manager">Hotel Manager</option>
+                    <option value="Front Desk Receptionist">Front Desk Receptionist</option>
+                    <option value="Head of Housekeeping">Head of Housekeeping</option>
+                    <option value="Executive Chef">Executive Chef</option>
+                    <option value="Security Supervisor">Security Supervisor</option>
+                    <option value="Concierge">Concierge</option>
+                </select>
+
+                <label>Duty Status</label>
+                <select id="editStaffStatus" required>
+                    <option value="Active">Active</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+
+                <button type="submit" class="submit-btn" id="editStaffSubmitBtn">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Edit Customer Modal (Admin) -->
+    <div class="modal no-print" id="editCustomerModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeEditCustomer()">×</button>
+            <h2>Edit Customer Account</h2>
+            <form id="editCustomerForm" onsubmit="submitEditCustomer(event)">
+                <input type="hidden" id="editCustomerId">
+
+                <label>Customer Name</label>
+                <input type="text" id="editCustomerName" required>
+
+                <label>Email Address</label>
+                <input type="email" id="editCustomerEmail" disabled>
+
+                <label>Phone Number</label>
+                <input type="tel" id="editCustomerPhone">
+
+                <label>Account Role</label>
+                <select id="editCustomerRole" required>
+                    <option value="customer">Customer</option>
+                    <option value="admin">Administrator</option>
+                </select>
+
+                <label>Account Status</label>
+                <select id="editCustomerStatus" required>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+
+                <button type="submit" class="submit-btn" id="editCustomerSubmitBtn">Update Account</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Customer Details & Booking History Modal (Admin) -->
+    <div class="modal no-print" id="customerDetailsModal">
+        <div class="modal-content modal-large">
+            <button class="close-btn" onclick="closeCustomerDetails()">×</button>
+            <div class="customer-profile-header">
+                <div>
+                    <h2 id="custDetailName">Customer Profile</h2>
+                    <p id="custDetailContact">Email & Phone</p>
+                </div>
+                <div class="customer-stats-pills">
+                    <span class="cust-pill" id="custDetailTotalSpent">₹0 Total Spent</span>
+                    <span class="cust-pill" id="custDetailBookingCount">0 Bookings</span>
+                    <span class="status-badge" id="custDetailStatus">Active</span>
+                </div>
+            </div>
+
+            <div class="customer-booking-history-wrap">
+                <h4>Booking History</h4>
+                <div class="admin-table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Booking Ref</th>
+                                <th>Room</th>
+                                <th>Dates</th>
+                                <th>Total</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="custDetailBookingsBody">
+                            <tr><td colspan="6" class="empty-state">No bookings recorded.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Admin Booking Details Modal (Admin) -->
+    <div class="modal no-print" id="adminBookingDetailsModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeAdminBookingDetails()">×</button>
+            <h2>Booking Details</h2>
+            <div class="admin-booking-detail-card" id="adminBookingDetailCard">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Edit Housekeeping Cleaning Status Modal (Admin) -->
+    <div class="modal no-print" id="editHousekeepingModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeEditHousekeeping()">×</button>
+            <h2>Update Housekeeping Status</h2>
+            <p id="hkModalRoomTag">Room 101</p>
+            <form id="editHousekeepingForm" onsubmit="submitEditHousekeeping(event)">
+                <input type="hidden" id="hkModalRoomId">
+
+                <label>Select Cleaning Status</label>
+                <select id="hkModalStatus" required>
+                    <option value="Clean">✨ Clean (Ready for guest)</option>
+                    <option value="Dirty">🧹 Dirty (Awaiting cleaning)</option>
+                    <option value="Cleaning in Progress">⏳ Cleaning in Progress</option>
+                    <option value="Maintenance Required">🛠️ Maintenance Required</option>
+                </select>
+
+                <p class="form-help-text">Updating will record the current timestamp as the last-cleaned time.</p>
+
+                <button type="submit" class="submit-btn" id="hkModalSubmitBtn">Update Housekeeping</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Chatbot Assistant -->
+    <button class="chat-button no-print" id="chatToggleBtn" onclick="toggleChat()" aria-label="Open StayEase Assistant" title="Chat with StayEase Assistant">
+        <span class="chat-btn-icon">💬</span>
+        <span class="chat-btn-pulse"></span>
+    </button>
+
+    <div class="chat-window no-print" id="chatWindow" role="dialog" aria-label="StayEase Assistant Chat Window">
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <div class="chat-header-avatar">
+                    <span>🏨</span>
+                    <span class="chat-status-dot" title="Online (FastAPI backend)"></span>
+                </div>
+                <div class="chat-header-text">
+                    <h4>StayEase Assistant</h4>
+                    <span class="chat-header-subtitle">24/7 Digital Concierge</span>
+                </div>
+            </div>
+            <div class="chat-header-actions">
+                <button type="button" class="chat-header-btn" onclick="clearChatHistory()" title="Clear Chat History" aria-label="Clear Chat History">🗑️</button>
+                <button type="button" class="chat-header-btn" onclick="toggleChat()" title="Close Chat" aria-label="Close Chat">✕</button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-bubble-wrapper bot">
+                <div class="bot-message">
+                    <p>Welcome to <strong>StayEase Hotel &amp; Luxury Suites</strong>! I am your 24/7 digital assistant powered directly by our FastAPI backend. How may I assist you today?</p>
+                    <span class="chat-msg-time" id="chatInitialTime">Just now</span>
+                </div>
+            </div>
+
+            <div class="chat-quick-actions" id="chatQuickActions">
+                <button type="button" onclick="quickChat('Explore Rooms')">🏨 Explore Rooms</button>
+                <button type="button" onclick="quickChat('What are your room prices?')">💰 Check Prices</button>
+                <button type="button" onclick="quickChat('How do I book a room?')">📋 Booking Help</button>
+                <button type="button" onclick="quickChat('What is your cancellation policy?')">🛡️ Cancellation Policy</button>
+                <button type="button" onclick="quickChat('How can I contact customer support?')">📞 Contact Support</button>
+            </div>
+        </div>
+
+        <!-- Animated Typing Indicator -->
+        <div class="chat-typing-indicator" id="chatTyping" style="display: none;">
+            <div class="typing-bubble">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+            <span class="typing-label">Assistant is typing...</span>
+        </div>
+
+        <form id="chatForm" onsubmit="handleChatSubmit(event)">
+            <input type="text" id="chatInput" placeholder="Ask about rooms, rates, check-in, policies..." maxlength="500" autocomplete="off" required>
+            <button type="submit" id="chatSendBtn" aria-label="Send Message" title="Send message">
+                <span>➤</span>
+            </button>
+        </form>
+    </div>
+
+
+    <!-- Premium Luxury Footer -->
+    <footer class="site-footer no-print">
+        <div class="footer-container">
+            <!-- Col 1: Brand & College Project Badge -->
+            <div class="footer-brand-col">
+                <a href="#" class="footer-logo" onclick="showSection('home'); return false;">Stay<span>Ease.</span></a>
+                <p class="footer-tagline">Exclusive Hotel & Luxury Suites</p>
+                <p class="footer-desc">
+                    Experience timeless hospitality, bespoke room accommodations, and seamless digital booking.
+                    Crafted with precision for comfort, peace, and relaxation.
+                </p>
+                <div class="project-tech-badge">
+                    <span>⚡ College Project</span>
+                    <small>FastAPI • PostgreSQL (Neon) • SQLAlchemy • JWT</small>
+                </div>
+            </div>
+
+            <!-- Col 2: Navigation Links -->
+            <div class="footer-col">
+                <h4>Quick Navigation</h4>
+                <ul>
+                    <li><a href="#" onclick="showSection('home'); return false;">Home Sanctuary</a></li>
+                    <li><a href="#" onclick="showSection('rooms'); return false;">Explore All Suites</a></li>
+                    <li><a href="#" onclick="showSection('about'); return false;">Our Story & Heritage</a></li>
+                    <li><a href="#" onclick="showSection('contact'); return false;">Concierge & Contact</a></li>
+                    <li><a href="/docs" target="_blank">Interactive API Docs ↗</a></li>
+                </ul>
+            </div>
+
+            <!-- Col 3: Signature Amenities -->
+            <div class="footer-col">
+                <h4>Hotel Services</h4>
+                <ul>
+                    <li><a href="#" onclick="showSection('rooms'); return false;">Executive Penthouse Suites</a></li>
+                    <li><a href="#" onclick="showSection('about'); return false;">Fine Dining & Room Service</a></li>
+                    <li><a href="#" onclick="showSection('about'); return false;">Skyline Heated Infinity Pool</a></li>
+                    <li><a href="#" onclick="showSection('about'); return false;">24/7 Front Desk Dispatch</a></li>
+                    <li><a href="#" onclick="showSection('about'); return false;">Express Digital Checkout</a></li>
+                </ul>
+            </div>
+
+            <!-- Col 4: Property Contact & Address -->
+            <div class="footer-col">
+                <h4>Property Location</h4>
+                <p class="footer-contact-item"><strong>📍 Address:</strong><br>124 Luxury Boulevard, Central District, New Delhi, 110001</p>
+                <p class="footer-contact-item"><strong>📞 Concierge:</strong><br>+91 98765 43210 (24/7)</p>
+                <p class="footer-contact-item"><strong>✉️ Reservations:</strong><br>concierge@stayease.com</p>
+                <div class="footer-social-links">
+                    <a href="#" class="social-icon" title="Instagram" onclick="return false;">📸</a>
+                    <a href="#" class="social-icon" title="LinkedIn" onclick="return false;">💼</a>
+                    <a href="#" class="social-icon" title="Twitter" onclick="return false;">🐦</a>
+                    <a href="#" class="social-icon" title="GitHub" onclick="return false;">🐙</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Bottom Bar -->
+        <div class="footer-bottom-bar">
+            <p>© 2026 StayEase Hotel Management System. Developed by the Student Development Team.</p>
+            <div class="footer-bottom-links">
+                <a href="#" onclick="return false;">Privacy Policy</a>
+                <span>•</span>
+                <a href="#" onclick="return false;">Terms of Hospitality</a>
+                <span>•</span>
+                <a href="#" onclick="return false;">Best Rate Guarantee</a>
+            </div>
+        </div>
+    </footer>
+
+
+    <script src="/assets/app.js"></script>
+
+</body>
+</html>
