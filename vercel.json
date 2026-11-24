@@ -20,7 +20,7 @@
       "dest": "/public/favicon.ico"
     },
     {
-      "src": "/(register|login|me|customers|rooms|bookings|my-bookings|admin|chat|chatbot|docs|openapi.json|redoc)(.*)",
+      "src": "/(auth|api|register|login|me|customers|rooms|bookings|my-bookings|admin|chat|chatbot|docs|openapi.json|redoc)(.*)",
       "dest": "main.py"
     },
     {

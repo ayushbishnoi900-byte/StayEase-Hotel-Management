@@ -45,111 +45,115 @@ def ensure_database_initialized():
     try:
         if engine.dialect.name == "postgresql":
             with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'customer';"))
-                conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Active';"))
-                conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';"))
-                conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';"))
-                conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS housekeeping_status VARCHAR DEFAULT 'Clean';"))
-                conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS last_cleaned TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guests INTEGER DEFAULT 1;"))
-                conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+                for t in ["hotels", "users", "rooms", "guests", "reservations", "maintenance"]:
+                    try:
+                        conn.execute(text(f"ALTER TABLE {t} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+                    except Exception:
+                        pass
+                try:
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS hotel_id INTEGER;"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS operational_status VARCHAR(50) DEFAULT 'Available';"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS housekeeping_status VARCHAR DEFAULT 'Clean';"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS last_cleaned TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+                    conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text("ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(100);"))
+                    conn.execute(text("UPDATE payments SET transaction_reference = transaction_ref WHERE transaction_reference IS NULL AND transaction_ref IS NOT NULL;"))
+                except Exception:
+                    pass
                 conn.commit()
 
         Base.metadata.create_all(bind=engine)
         db = Session(bind=engine)
         try:
-            # 1. Ensure Default Administrator
-            admin_email = os.getenv("ADMIN_EMAIL", "admin@stayease.com")
-            admin_pwd = os.getenv("ADMIN_PASSWORD", "admin123")
-            admin_name = os.getenv("ADMIN_NAME", "StayEase Administrator")
-
-            existing_admin = db.query(Customer).filter(Customer.email == admin_email).first()
-            if not existing_admin:
-                admin_user = Customer(
-                    name=admin_name,
-                    email=admin_email,
-                    password=password_hash.hash(admin_pwd),
-                    phone="+91 98765 43210",
-                    role="admin"
-                )
-                db.add(admin_user)
-                db.commit()
-                print(f"[StayEase] Default admin initialized: {admin_email}")
-
-            # 2. Ensure Hotel Settings
-            if not db.query(HotelSetting).first():
-                settings = HotelSetting(
-                    hotel_name="StayEase Hotel & Luxury Suites",
-                    contact_email="contact@stayease.com",
-                    contact_phone="+91 98765 43210",
-                    hotel_address="124 Luxury Boulevard, Central District, New Delhi, 110001",
+            # 1. Ensure Default Hotel
+            hotel = db.query(Hotel).first()
+            if not hotel:
+                hotel = Hotel(
+                    hotel_name="Grand StayEase Palace",
+                    address="124 Luxury Boulevard, Central District",
+                    city="New Delhi",
+                    state="Delhi",
+                    country="India",
+                    contact_number="+91 98765 43210",
+                    hotel_email="contact@stayease.com",
+                    hotel_category="Luxury",
+                    total_rooms=10,
                     check_in_time="14:00",
-                    check_out_time="11:00",
-                    cancellation_policy="Free cancellation up to 24 hours prior to standard check-in time."
+                    check_out_time="11:00"
                 )
-                db.add(settings)
+                db.add(hotel)
                 db.commit()
-                print("[StayEase] Default hotel settings initialized.")
+                db.refresh(hotel)
 
-            # 3. Ensure Sample Rooms exist if catalog is empty
-            if db.query(Room).count() == 0:
-                sample_rooms = [
-                    Room(
-                        room_number="101",
-                        room_type="Standard",
-                        price=1800.0,
-                        capacity=2,
-                        description="Cozy room with queen bed, high-speed WiFi, work desk, and en-suite bathroom.",
-                        image_url="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=700",
-                        status="Available"
-                    ),
-                    Room(
-                        room_number="102",
-                        room_type="Standard",
-                        price=1800.0,
-                        capacity=2,
-                        description="Peaceful standard room facing the inner garden with air conditioning and smart TV.",
-                        image_url="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=700",
-                        status="Available"
-                    ),
-                    Room(
-                        room_number="201",
-                        room_type="Deluxe",
-                        price=3000.0,
-                        capacity=3,
-                        description="Spacious deluxe room with king bed, private balcony, mini-bar, and city view.",
-                        image_url="https://images.unsplash.com/photo-1590490360182-c33d955571d7?w=700",
-                        status="Available"
-                    ),
-                    Room(
-                        room_number="202",
-                        room_type="Deluxe",
-                        price=3200.0,
-                        capacity=3,
-                        description="Premium deluxe room featuring modern interior, sofa lounger, and complimentary breakfast.",
-                        image_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=700",
-                        status="Available"
-                    ),
-                    Room(
-                        room_number="301",
-                        room_type="Suite",
-                        price=5000.0,
-                        capacity=4,
-                        description="Executive luxury suite with separated living room, jacuzzi tub, and panoramic skyline views.",
-                        image_url="https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=700",
-                        status="Available"
-                    ),
-                    Room(
-                        room_number="302",
-                        room_type="Suite",
-                        price=5500.0,
-                        capacity=4,
-                        description="Presidential penthouse suite featuring private terrace, dining area, butler pantry, and master jacuzzi.",
-                        image_url="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=700",
-                        status="Available"
+            # 2. Ensure Default Owner / Admin
+            admin_email = os.getenv("ADMIN_EMAIL", "admin@stayease.com")
+            owner_user = db.query(User).filter(User.email == admin_email).first()
+            if not owner_user:
+                owner_user = User(
+                    full_name=os.getenv("ADMIN_NAME", "StayEase Administrator"),
+                    email=admin_email,
+                    phone="+91 98765 43210",
+                    hashed_password=password_hash.hash(os.getenv("ADMIN_PASSWORD", "admin123")),
+                    role="owner",
+                    designation="Property Owner",
+                    department="Management",
+                    hotel_id=hotel.id,
+                    is_active=True,
+                    status="Active"
+                )
+                db.add(owner_user)
+                db.commit()
+                db.refresh(owner_user)
+            else:
+                if owner_user.role != "owner" or owner_user.hotel_id != hotel.id:
+                    owner_user.role = "owner"
+                    owner_user.hotel_id = hotel.id
+                    db.commit()
+
+            if hotel.owner_id is None:
+                hotel.owner_id = owner_user.id
+                db.commit()
+
+            # 3. Ensure Demonstration Staff Accounts
+            staff_seed = [
+                ("Rohan Mehta", "manager@stayease.com", "manager", "Operations Manager", "Front Office"),
+                ("Priya Sharma", "receptionist@stayease.com", "receptionist", "Chief Receptionist", "Front Desk"),
+                ("Sunita Verma", "housekeeping@stayease.com", "housekeeping", "Housekeeping Supervisor", "Housekeeping"),
+                ("Anil Kapoor", "accountant@stayease.com", "accountant", "Senior Financial Auditor", "Accounts & Finance"),
+                ("Rajesh Kumar", "maintenance@stayease.com", "maintenance", "Head Facility Engineer", "Maintenance")
+            ]
+            for s_name, s_email, s_role, s_desig, s_dept in staff_seed:
+                existing_staff = db.query(User).filter(User.email == s_email).first()
+                if not existing_staff:
+                    new_staff = User(
+                        full_name=s_name,
+                        email=s_email,
+                        phone="+91 91234 56789",
+                        hashed_password=password_hash.hash("staff123"),
+                        role=s_role,
+                        designation=s_desig,
+                        department=s_dept,
+                        hotel_id=hotel.id,
+                        is_active=True,
+                        status="Active"
                     )
+                    db.add(new_staff)
+            db.commit()
+
+            # 4. Ensure Sample Rooms exist
+            if db.query(Room).filter(Room.hotel_id == hotel.id).count() == 0:
+                sample_rooms = [
+                    Room(hotel_id=hotel.id, room_number="101", room_type="Standard", price=1800.0, capacity=2, operational_status="Available", description="Cozy queen room with high-speed WiFi and en-suite bath.", image_url="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=700"),
+                    Room(hotel_id=hotel.id, room_number="102", room_type="Standard", price=1900.0, capacity=2, operational_status="Available", description="Garden view standard room with climate AC and smart TV.", image_url="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=700"),
+                    Room(hotel_id=hotel.id, room_number="201", room_type="Deluxe", price=3000.0, capacity=3, operational_status="Available", description="Spacious king room with city view balcony and mini-bar.", image_url="https://images.unsplash.com/photo-1590490360182-c33d955571d7?w=700"),
+                    Room(hotel_id=hotel.id, room_number="202", room_type="Deluxe", price=3200.0, capacity=3, operational_status="Available", description="Designer interior with plush lounger and complimentary breakfast.", image_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=700"),
+                    Room(hotel_id=hotel.id, room_number="301", room_type="Suite", price=5000.0, capacity=4, operational_status="Available", description="Executive suite with private living lounge and jacuzzi bath.", image_url="https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=700"),
+                    Room(hotel_id=hotel.id, room_number="302", room_type="Suite", price=5500.0, capacity=4, operational_status="Available", description="Presidential penthouse suite with private terrace and butler pantry.", image_url="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=700")
                 ]
                 db.add_all(sample_rooms)
                 db.commit()
@@ -371,17 +375,19 @@ def get_current_user(
     return customer
 
 
+STAFF_ROLES = ["admin", "owner", "manager", "receptionist", "housekeeping", "accountant", "maintenance", "staff"]
+
 def require_admin(
     customer: Customer = Depends(get_current_user)
 ) -> Customer:
     """
-    Ensures that the authenticated user possesses administrator or hotel owner privileges.
-    Customers attempting to access admin APIs receive 403 Forbidden.
+    Ensures that the authenticated user possesses administrator, hotel owner, or staff privileges.
+    Public customers attempting to access internal management APIs receive 403 Forbidden.
     """
-    if customer.role not in ["admin", "owner"]:
+    if customer.role not in STAFF_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator or Hotel Owner access required for this operation."
+            detail="Authorized Hotel Staff or Owner access required for this operation."
         )
     return customer
 

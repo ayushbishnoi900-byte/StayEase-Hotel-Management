@@ -74,17 +74,25 @@ async function authFetch(url, options) {
 
     const response = await fetch(API + url, options);
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
         localStorage.removeItem("customer");
         localStorage.removeItem("access_token");
         currentUser = null;
         updateNavbar();
 
-        if (url !== "/login" && url !== "/register") {
+        if (url !== "/login" && url !== "/register" && !url.startsWith("/auth/")) {
             showToast("Session expired. Please log in again.", "error");
             openAuth("login");
             throw new Error("Authentication required");
         }
+    } else if (response.status === 403) {
+        // Do NOT log the user out! 403 is a permission restriction, not session expiry.
+        const clone = response.clone();
+        clone.json().then(function(errJson) {
+            showToast(errJson.detail || "Access restricted for your current role.", "error");
+        }).catch(function() {
+            showToast("Access restricted for your current role.", "error");
+        });
     }
 
     return response;
