@@ -27,9 +27,10 @@ All critical, high-priority, and edge-case workflows passed without regression.
 | **`tests/test_admin.py`** | Dashboard metrics, customer management, staff CRUD, housekeeping updates, analytics & settings | 5 | 5 | 0 | 100% |
 | **`tests/test_security.py`** | IDOR guards, admin authorization checks, SQL injection safety, password hashing verification | 11 | 11 | 0 | 100% |
 | **`tests/test_chatbot.py`** | Chatbot 26 customer question intents, room rates, live DB lookups, policy queries, rate limiter | 6 | 6 | 0 | 100% |
+| **`tests/test_saas_multi_tenancy.py`** | Multi-tenant SaaS isolation, owner registration, staff RBAC enforcement, walk-in reservation lifecycle | 4 | 4 | 0 | 100% |
 | **`test_backend.py`** | Integrated backend end-to-end test suite across all 34 FastAPI endpoints | 76 | 76 | 0 | 100% |
 | **`test_chatbot.py`** | Standalone 26-question conversational evaluation suite | 26 | 26 | 0 | 100% |
-| **Total Automated Tests** | **Full Project Automated Verification** | **150** | **150** | **0** | **100%** |
+| **Total Automated Tests** | **Full Project Automated Verification** | **154** | **154** | **0** | **100%** |
 
 ---
 

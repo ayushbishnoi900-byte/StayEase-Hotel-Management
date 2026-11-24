@@ -1,6 +1,6 @@
-# StayEase – Hotel Management System
+# StayEase – Hotel Management SaaS Platform
 
-> **A Modern, Full-Stack Hospitality Reservation & Management Platform**  
+> **A Multi-Tenant B2B Cloud ERP & Operations System for Hotel Owners and Staff**  
 > Developed as a B.Tech Computer Science College Capstone Project by a team of four students.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
@@ -8,38 +8,57 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-336791?style=flat&logo=postgresql&logoColor=white)](https://neon.tech/)
 [![SQLAlchemy](https://img.shields.io/badge/ORM-SQLAlchemy%202.0-D71F00?style=flat)](https://www.sqlalchemy.org/)
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?style=flat&logo=vercel&logoColor=white)](https://vercel.com/)
-[![Tests](https://img.shields.io/badge/Automated%20Tests-150%20Passed-brightgreen?style=flat)](TESTING_REPORT.md)
+[![Tests](https://img.shields.io/badge/Automated%20Tests-154%20Passed-brightgreen?style=flat)](TESTING_REPORT.md)
 
 ---
 
 ## 1. Project Introduction
 
-**StayEase** is a production-ready, full-stack Hotel Management & Reservation System designed to provide a seamless guest booking experience and an intuitive operational dashboard for hotel administrators.
+**StayEase** is a production-grade, multi-tenant **Hotel Management SaaS Platform** designed exclusively for hotel owners and their authorized operational staff. 
 
-The system solves common challenges faced by independent boutique hotels, such as double bookings, manual bill calculation, room maintenance tracking, and repetitive guest inquiries, all while remaining lightweight, clean, and beginner-friendly for college presentations and viva examinations.
+**Important Business Model**:
+StayEase is **NOT** a public B2C hotel room booking directory. It is an enterprise **Hospitality ERP & Property Management System (PMS)**. A hotel owner registers their property on StayEase, configures room catalogs, delegates staff accounts across specialized departments, and manages their entire property digitally.
+
+Guests are operational customer records logged by front-desk staff (supporting walk-ins, phone inquiries, and corporate reservations) — eliminating paper registers and manual spreadsheet tracking.
 
 ---
 
-## 2. Key Features
+## 2. Key Architecture & Features
 
-### For Guests & Customers
-- **Curated Room Catalog**: Browse real-time room inventory across three distinct categories: *Standard*, *Deluxe*, and *Executive Suites*.
-- **Dynamic Search & Filtering**: Filter rooms by stay dates, category, guest capacity, and price per night.
-- **Interactive Room Details**: Inspect high-definition room photography, included amenities, maximum capacity, and live total price estimation.
-- **Secure Authentication**: Customer registration and login protected with modern **Argon2id** password hashing and **JWT** session tokens.
-- **Booking Flow & Prevention of Double-Booking**: Instant reservation confirmation with row-level locking and overlapping date collision protection.
-- **Customer Dashboard ("My Bookings")**: Categorized reservation tabs (*Upcoming*, *Completed*, *Cancelled*), self-service cancellation, and printable tax invoices.
-- **Official Invoice Generator**: Download or print clean PDF invoices with hotel GSTIN, customer details, and itemized billing.
-- **StayEase Assistant (24/7 Digital Concierge)**: In-house Python-powered chatbot answering questions on check-in/out hours, tariffs, amenities, and policies without requiring paid third-party AI tokens.
+### A. Dedicated Hotel Owner Registration & Tenant Provisioning
+- **Onboarding Flow (`POST /auth/register-owner`)**: Hotel owners register with their personal credentials and property profile (Hotel Name, Category, Address, Total Rooms, Contact Details).
+- **Auto-Provisioning**: Upon registration, an isolated `Hotel` tenant and `owner` user account are provisioned, seeded with starter room inventory, and immediately granted executive dashboard access.
 
-### For Hotel Administrators
-- **Executive Oversight Dashboard**: Live counters for Total Rooms, Available Rooms, Occupied Rooms, Total Customers, Total Bookings, Confirmed Bookings, Cancelled Bookings, and Total Revenue.
-- **Room Management (CRUD)**: Create new rooms, edit room rates or status, and safely delete rooms (protected from deleting rooms with active bookings).
-- **Housekeeping Module**: Track and update cleaning status (*Clean*, *Dirty*, *Cleaning in Progress*, *Inspection Needed*) with recorded timestamps.
-- **Staff Directory**: Add, update, and manage hotel employees across departments (Front Desk, Concierge, Housekeeping).
-- **Customer Oversight**: View customer profiles, lifetime spend, booking history, and account activation status.
-- **Hotel Configuration**: Update hotel contact info, check-in/out hours, and cancellation terms directly from the UI.
-- **Occupancy & Trend Analytics**: Monthly reservation statistics and room category popularity charts powered by Chart.js.
+### B. Multi-Role Staff Account Delegation & RBAC
+Hotel owners and general managers can create employee accounts with strictly enforced Role-Based Access Control (RBAC):
+1. **Hotel Owner (`owner`)**: Full executive control over property profile, staff delegation, rooms, billing, and system configuration.
+2. **General Manager (`manager`)**: Day-to-day operations, staff directory oversight, inventory management, and performance reports.
+3. **Front Desk Receptionist (`receptionist`)**: Walk-in & phone reservation logging, guest check-in/out, live room availability, and guest directory.
+4. **Housekeeping Lead (`housekeeping`)**: Real-time room cleanliness tracking (*Clean*, *Dirty*, *In Progress*, *Inspection Needed*). Automatically marks rooms *Dirty* upon guest check-out.
+5. **Hotel Accountant (`accountant`)**: Offline payment settlements (Cash, Card, UPI, Bank Transfer), official GST tax invoice generation, and financial auditing.
+6. **Facility Maintenance (`maintenance`)**: Physical/electrical repair ticketing with priority levels (*Low*, *Medium*, *High*, *Urgent*). Urgent priority marks rooms Out-of-Order.
+
+### C. Multi-Tenant Data Isolation
+- Strict row-level tenant scoping using foreign key `hotel_id` across all relational entities: `rooms`, `guests`, `reservations`, `payments`, `housekeeping`, `maintenance`, and `users`.
+- Backend endpoints automatically source `current_user.hotel_id` from cryptographically verified JWT session tokens.
+- Cross-tenant data leakage is strictly blocked with comprehensive automated multi-tenancy tests.
+
+### D. Front Desk Operations & Walk-In Desk
+- Fast reservation workflow for counter walk-ins and phone calls.
+- Collects government identification proof (Aadhaar, Passport, Driver's License, Voter ID) and contact details into the hotel's private **Guest Directory**.
+- Collision prevention prevents double-booking rooms across overlapping stay dates.
+
+### E. Live Demo Evaluator Accounts
+Pre-seeded demo credentials for instant evaluation across every tier:
+
+| Role | Email Address | Password | Designated Permissions |
+| :--- | :--- | :--- | :--- |
+| **👑 Hotel Owner** | `admin@stayease.com` | `admin123` | Full Property Access (Dashboard, Staff, Settings, CRUD) |
+| **👔 General Manager** | `manager@stayease.com` | `staff123` | Operations, Staff Oversight, Room Management, Reports |
+| **🛎️ Receptionist** | `receptionist@stayease.com` | `staff123` | Front Desk, Walk-Ins, Guest Check-In/Out, Payments |
+| **🧹 Housekeeping** | `housekeeping@stayease.com` | `staff123` | Room Cleanliness Board, Quick Status Updates |
+| **💳 Accountant** | `accountant@stayease.com` | `staff123` | Billing Transactions, Financial Reports, Invoicing |
+| **🔧 Maintenance** | `maintenance@stayease.com` | `staff123` | Equipment Defect Tickets, Room Repair Resolution |
 
 ---
 

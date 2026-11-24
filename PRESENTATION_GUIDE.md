@@ -31,29 +31,30 @@
 ---
 
 ## Part A: Project Introduction
-StayEase is an enterprise-grade, cloud-ready Hotel Management & Reservation System engineered using modern web technologies. It bridges the gap between customer-facing hotel booking platforms (like Booking.com or Airbnb) and internal hotel property management systems (PMS) used by front desk and administrative staff.
+StayEase is an enterprise-grade, cloud-native **Multi-Tenant Hotel Management SaaS Platform** engineered using modern web technologies. Unlike standard consumer room booking sites, StayEase is a business-to-business (B2B) Property Management System (PMS) and operations suite built specifically for hotel owners and authorized operational staff.
 
-The system empowers guests to view live room availability, reserve rooms, print official tax invoices, manage upcoming stays, and query a 24/7 digital assistant. Simultaneously, it equips hotel managers with an administrative dashboard to oversee bookings, occupancy rates, housekeeping cycles, staff records, and revenue metrics.
+A hotel owner registers their property on StayEase, provisions an isolated digital workspace, configures rooms, and delegates staff accounts across specialized departments (Front Desk, Housekeeping, Accounting, Maintenance). Hotel guests are managed as operational customer records logged directly by staff for walk-ins, phone bookings, and corporate stays.
 
 ---
 
 ## Part B: Problem Statement
 Independent boutique hotels and mid-sized hospitality businesses often face significant operational inefficiencies:
-1. **Double-Booking Collisions**: Manual reservation books or poorly isolated databases lead to simultaneous bookings for the same room on overlapping dates.
-2. **Security Vulnerabilities**: Many student and legacy hotel systems store plain-text passwords or vulnerable MD5/SHA1 hashes and lack Insecure Direct Object Reference (IDOR) guards.
-3. **High Maintenance Overhead**: Heavy single-page frameworks (React/Angular) introduce complicated build pipelines, high bundle sizes, and dependency conflicts.
-4. **Manual Billing & Invoicing**: Staff spend significant time calculating multi-night tariffs, taxes, and creating invoices manually.
-5. **Customer Support Bottlenecks**: Front desk staff are overwhelmed with repetitive inquiries regarding check-in times, amenities, and pricing.
+1. **Disjointed Operational Silos**: Front desk, housekeeping, and maintenance teams rely on paper registers or fragmented chat groups, causing delays and dirty-room assignments.
+2. **Double-Booking Collisions**: Manual walk-in logging leads to simultaneous room allocation for overlapping dates.
+3. **Lack of Granular Role Delegation**: Without role-based access control (RBAC), unauthorized staff can modify prices, view sensitive financial metrics, or alter room status.
+4. **Data Leakage in Multi-Tenant Environments**: Cloud systems often fail to isolate tenant data, risking cross-hotel information exposure.
+5. **High Maintenance Overhead**: Heavy single-page frameworks (React/Angular) introduce complicated build pipelines and bundle overhead.
 
 ---
 
 ## Part C: Proposed Solution
 StayEase resolves these operational pain points through:
-1. **Mathematical Overlap Prevention Engine**: Server-side validation logic enforced with row-level database locks that guarantees zero overlapping reservations.
-2. **Modern Security Hardening**: Industry-standard **Argon2id** password hashing, stateless signed **JWT tokens**, and strict ownership verification on all booking, payment, and invoice endpoints.
-3. **High-Performance Architecture**: Asynchronous Python **FastAPI** backend with a lightweight, responsive vanilla frontend executing in $< 10\text{ms}$.
-4. **Automated Billing & Digital Invoicing**: Instant multi-night calculation ($Nights \times Rate$) and printable PDF invoices generated at the click of a button.
-5. **StayEase Assistant (In-House Conversational Concierge)**: A custom Python-driven intent extraction engine providing 24/7 answers from live database inventory without external API fees.
+1. **Multi-Tenant SaaS Architecture**: Strict row-level isolation via `hotel_id` across rooms, guests, bookings, payments, and staff users, derived securely from JWT tokens.
+2. **6-Tier Role-Based Access Control (RBAC)**: Tailored operational views and API restrictions for Owner, General Manager, Receptionist, Housekeeping, Accountant, and Maintenance.
+3. **Walk-In Front Desk Engine**: Fast walk-in registration with government ID tracking (Passport, National ID, Driver's License) and mathematical date collision protection.
+4. **Live Operational Boards**: Real-time Housekeeping Cleanliness Board and Maintenance Ticket Tracker with priority escalation.
+5. **Modern Security Hardening**: Industry-standard **Argon2id** password hashing, stateless signed **JWT tokens**, and strict ownership verification.
+6. **StayEase Assistant**: In-house Python-driven conversational assistant answering operational and hotel queries without paid external API dependencies.
 
 ---
 

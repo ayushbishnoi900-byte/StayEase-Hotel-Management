@@ -19,8 +19,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 
 from database.database import engine, Base, get_db
-from database.models import Customer, Room, Booking, Payment, Staff, HotelSetting
+from database.models import (
+    Customer, Room, Booking, Payment, Staff, HotelSetting,
+    Hotel, User, Guest, Reservation, Housekeeping, Maintenance
+)
 from chatbot.assistant import StayEaseAssistant, rate_limiter
+from saas_routes import saas_router
 
 from pwdlib import PasswordHash
 from jose import jwt, JWTError
@@ -184,6 +188,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Include Multi-Tenant SaaS Router
+app.include_router(saas_router)
 
 
 # ==========================================
@@ -368,13 +375,13 @@ def require_admin(
     customer: Customer = Depends(get_current_user)
 ) -> Customer:
     """
-    Ensures that the authenticated user possesses administrator privileges.
+    Ensures that the authenticated user possesses administrator or hotel owner privileges.
     Customers attempting to access admin APIs receive 403 Forbidden.
     """
-    if customer.role != "admin":
+    if customer.role not in ["admin", "owner"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator access required for this operation."
+            detail="Administrator or Hotel Owner access required for this operation."
         )
     return customer
 
@@ -442,16 +449,20 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email address or password."
         )
 
+    hotel_id = customer.hotel_id or 1
     now = datetime.now(timezone.utc)
     token_payload = {
         "sub": str(customer.id),
         "role": customer.role,
         "name": customer.name,
+        "hotel_id": hotel_id,
         "iat": now,
         "exp": now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     }
 
     token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    hotel = db.query(Hotel).filter(Hotel.id == hotel_id).first()
 
     return {
         "message": "Login successful.",
@@ -462,8 +473,24 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             "name": customer.name,
             "email": customer.email,
             "phone": customer.phone,
-            "role": customer.role
-        }
+            "role": customer.role,
+            "hotel_id": hotel_id
+        },
+        "user": {
+            "id": customer.id,
+            "name": customer.name,
+            "email": customer.email,
+            "phone": customer.phone,
+            "role": customer.role,
+            "designation": getattr(customer, "designation", "") or customer.role.title(),
+            "department": getattr(customer, "department", ""),
+            "hotel_id": hotel_id
+        },
+        "hotel": {
+            "id": hotel.id if hotel else hotel_id,
+            "hotel_name": hotel.hotel_name if hotel else "StayEase Hotel",
+            "category": hotel.hotel_category if hotel else "Boutique"
+        } if hotel else None
     }
 
 
@@ -1405,7 +1432,9 @@ def admin_get_staff(
     """
     List all hotel staff members (Admin only).
     """
-    staff_members = db.query(Staff).order_by(Staff.id.asc()).all()
+    staff_members = db.query(Staff).filter(
+        Staff.role.in_(["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"])
+    ).order_by(Staff.id.asc()).all()
 
     return [
         {
@@ -1610,7 +1639,9 @@ def admin_dashboard(
         Booking.id.in_(paid_booking_ids)
     ).scalar() or 0.0
 
-    total_staff = db.query(Staff).count()
+    total_staff = db.query(Staff).filter(
+        Staff.role.in_(["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"])
+    ).count()
 
     pending_payments = db.query(Payment).filter(
         Payment.payment_status == "Pending"

@@ -380,7 +380,50 @@ class StayEaseAssistant:
             }
 
         # ----------------------------------------------------
-        # 21. FALLBACK RESPONSE
+        # 21. SAAS PLATFORM & OPERATIONS GUIDES
+        # ----------------------------------------------------
+        if any(w in clean_text for w in ["walk in", "walkin", "check in guest", "checkin guest", "front desk", "frontdesk"]):
+            return {
+                "reply": "Front Desk Check-in: Navigate to 'Front Desk & Reservations' in the Operations Portal. Click '🛎️ + New Walk-in / Reservation', enter the guest's name, phone, and ID proof, pick an available room, select stay dates, and click 'Confirm Reservation & Allocate Room'.",
+                "intent": "front_desk_guide",
+                "quick_replies": ["Staff Management", "Housekeeping Board", "Maintenance"],
+                "action": "navigate:admin"
+            }
+
+        if any(w in clean_text for w in ["staff role", "staff roles", "permissions", "create staff", "add staff", "employee"]):
+            return {
+                "reply": "StayEase supports 5 specialized staff roles: 1. Manager (full operations & reports), 2. Receptionist (front desk, reservations, walk-ins), 3. Housekeeping (room cleanliness board), 4. Accountant (payments, invoices, revenue), 5. Maintenance (defect tickets & repairs). Owners and Managers can add staff from 'Staff Management'.",
+                "intent": "staff_roles_guide",
+                "quick_replies": ["Front Desk Guide", "Housekeeping Board", "Register Hotel"],
+                "action": "navigate:admin"
+            }
+
+        if any(w in clean_text for w in ["clean", "dirty", "housekeeping board", "cleaning status"]):
+            return {
+                "reply": "Housekeeping Management: In the 'Housekeeping' panel, rooms are tracked across 4 states: Clean, Dirty, In Progress, and Inspection Needed. When a guest checks out, the room is automatically flagged as Dirty. Staff can update status with one click.",
+                "intent": "housekeeping_guide",
+                "quick_replies": ["Maintenance Guide", "Front Desk Guide", "Staff Management"],
+                "action": "navigate:admin"
+            }
+
+        if any(w in clean_text for w in ["maintenance", "repair", "defect", "fix room", "out of order"]):
+            return {
+                "reply": "Facility Maintenance: Log issues under the 'Maintenance' panel by clicking '🔧 + Report Maintenance Issue'. Select room, describe the defect, and assign priority (Low, Med, High, Urgent). Urgent priority automatically flags the room as Out-of-Order.",
+                "intent": "maintenance_guide",
+                "quick_replies": ["Housekeeping Board", "Front Desk Guide", "Room Catalog"],
+                "action": "navigate:admin"
+            }
+
+        if any(w in clean_text for w in ["register hotel", "onboard hotel", "hotel owner", "new hotel"]):
+            return {
+                "reply": "To onboard your property, click 'Register Your Hotel' on the top navbar. Enter your owner credentials and hotel property details (total rooms, category, contact). The system instantly provisions a secure multi-tenant environment with starter inventory.",
+                "intent": "owner_registration_guide",
+                "quick_replies": ["Staff Roles", "Front Desk Guide", "Live Demo Accounts"],
+                "action": "none"
+            }
+
+        # ----------------------------------------------------
+        # 22. FALLBACK RESPONSE
         # ----------------------------------------------------
         return {
             "reply": f"I am the StayEase Assistant, programmed to guide you through hotel accommodations, rates, and bookings. I didn't quite understand that. Would you like assistance with room rates, available suites, booking instructions, or hotel policies?",

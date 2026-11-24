@@ -218,24 +218,27 @@ document.getElementById("authForm").addEventListener("submit", async function (e
         }
 
         if (authMode === "register") {
-            showToast("Registration successful! Please sign in with your password.");
+            showToast("Registration successful! Please sign in with your credentials.");
             authMode = "login";
             updateAuthForm();
             document.getElementById("authForm").reset();
         } else {
-            currentUser = result.customer;
+            currentUser = result.user || result.customer;
             localStorage.setItem("customer", JSON.stringify(currentUser));
             localStorage.setItem("access_token", result.access_token);
+            if (result.hotel) {
+                localStorage.setItem("current_hotel", JSON.stringify(result.hotel));
+            }
 
-            showToast("Welcome back, " + currentUser.name + "!");
+            const roleTitle = (currentUser.role || "staff").toUpperCase();
+            showToast("Signed in as " + currentUser.name + " (" + roleTitle + ")!");
             closeAuth();
             updateNavbar();
 
-            // Resume pending booking if customer was in the middle of booking
-            if (pendingBookingState) {
-                const pending = pendingBookingState;
-                pendingBookingState = null;
-                openBookingConfirm(pending);
+            // Automatically open operations portal for hotel team
+            const staffRoles = ["owner", "admin", "manager", "receptionist", "housekeeping", "accountant", "maintenance"];
+            if (staffRoles.includes(currentUser.role)) {
+                showSection("admin");
             }
         }
     } catch (error) {
@@ -281,25 +284,29 @@ document.addEventListener("click", function (event) {
 
 function updateNavbar() {
     const nav = document.getElementById("navButtons");
-    const myBookingsLink = document.getElementById("myBookingsLink");
     const adminLink = document.getElementById("adminLink");
+    const staffRoles = ["owner", "admin", "manager", "receptionist", "housekeeping", "accountant", "maintenance"];
 
     if (currentUser) {
-        if (myBookingsLink) myBookingsLink.classList.remove("hidden");
-
-        if (currentUser.role === "admin") {
-            if (adminLink) adminLink.classList.remove("hidden");
-        } else {
-            if (adminLink) adminLink.classList.add("hidden");
+        if (adminLink) {
+            if (staffRoles.includes(currentUser.role)) {
+                adminLink.classList.remove("hidden");
+                adminLink.textContent = "Operations Portal (" + currentUser.role.toUpperCase() + ")";
+            } else {
+                adminLink.classList.add("hidden");
+            }
         }
 
         const initials = getInitials(currentUser.name);
-        const roleLabel = currentUser.role === "admin" ? "Administrator" : "Verified Guest";
-        const roleClass = currentUser.role === "admin" ? "role-badge-admin" : "role-badge-cust";
+        const roleLabel = (currentUser.role || "staff").toUpperCase();
+        const roleClass = "role-badge-" + (currentUser.role || "staff");
 
         nav.innerHTML =
             '<div class="profile-dropdown-wrapper" id="profileDropdownWrapper">' +
-                '<button class="profile-dropdown-trigger" onclick="toggleProfileDropdown(event)" aria-label="Customer Account Menu">' +
+                '<button class="portal-cta-pill" onclick="showSection(\'admin\');">' +
+                    '<span class="portal-pulse-dot"></span> Operations Portal' +
+                '</button>' +
+                '<button class="profile-dropdown-trigger" onclick="toggleProfileDropdown(event)" aria-label="Staff Account Menu">' +
                     '<span class="profile-avatar-circle">' + initials + '</span>' +
                     '<span class="profile-trigger-name">' + escapeHTML(currentUser.name) + '</span>' +
                     '<span class="profile-trigger-arrow">▾</span>' +
@@ -311,20 +318,18 @@ function updateNavbar() {
                         '<span class="role-badge ' + roleClass + '">' + roleLabel + '</span>' +
                     '</div>' +
                     '<div class="dropdown-divider"></div>' +
-                    '<button class="dropdown-item" onclick="openProfileModal(); toggleProfileDropdown();"><span class="dropdown-icon">👤</span> My Profile</button>' +
-                    '<button class="dropdown-item" onclick="showSection(\'my-bookings\'); toggleProfileDropdown();"><span class="dropdown-icon">📋</span> My Bookings</button>' +
-                    (currentUser.role === "admin" ? '<button class="dropdown-item" onclick="showSection(\'admin\'); toggleProfileDropdown();"><span class="dropdown-icon">⚙️</span> Admin Portal</button>' : '') +
+                    '<button class="dropdown-item" onclick="openProfileModal(); toggleProfileDropdown();"><span class="dropdown-icon">👤</span> My Staff Profile</button>' +
+                    '<button class="dropdown-item" onclick="showSection(\'admin\'); toggleProfileDropdown();"><span class="dropdown-icon">⚙️</span> Hotel Operations Portal</button>' +
                     '<div class="dropdown-divider"></div>' +
                     '<button class="dropdown-item dropdown-logout-btn" onclick="logout();"><span class="dropdown-icon">🚪</span> Sign Out</button>' +
                 '</div>' +
             '</div>';
     } else {
-        if (myBookingsLink) myBookingsLink.classList.add("hidden");
         if (adminLink) adminLink.classList.add("hidden");
 
         nav.innerHTML =
-            '<button class="login-btn" onclick="openAuth(\'login\')">Sign In</button>' +
-            '<button class="signup-btn" onclick="openAuth(\'register\')">Book a Room</button>';
+            '<button class="login-btn" onclick="openAuth(\'login\')">Staff & Owner Sign In</button>' +
+            '<button class="signup-btn" onclick="openOwnerRegister()">Register Your Hotel</button>';
     }
 }
 
@@ -1038,15 +1043,36 @@ let customerSearchTimer = null;
 let paymentSearchTimer = null;
 
 function loadAdminDashboard() {
-    if (!currentUser || currentUser.role !== "admin") {
-        showToast("Administrator privileges required.", "error");
+    const staffRoles = ["owner", "admin", "manager", "receptionist", "housekeeping", "accountant", "maintenance"];
+    if (!currentUser || !staffRoles.includes(currentUser.role)) {
+        showToast("Staff or Owner credentials required.", "error");
         showSection("home");
         return;
     }
 
     // Set admin user name in topbar
     const adminNameEl = document.getElementById("adminUserName");
-    if (adminNameEl) adminNameEl.textContent = currentUser.name || "Administrator";
+    if (adminNameEl) {
+        adminNameEl.textContent = (currentUser.name || "User") + " (" + (currentUser.role || "staff").toUpperCase() + ")";
+    }
+
+    const badgeEl = document.getElementById("adminHotelBadge");
+    const storedHotel = JSON.parse(localStorage.getItem("current_hotel") || "null");
+    if (badgeEl) {
+        badgeEl.textContent = storedHotel ? (storedHotel.hotel_name || storedHotel.name || "StayEase Hotel") : "StayEase Hotel";
+    }
+
+    // Adapt sidebar visible items based on current user role
+    adaptSidebarForRole(currentUser.role);
+
+    // Pick role-specific starting view if not set or not allowed
+    if (!currentAdminView || !isViewAllowedForRole(currentAdminView, currentUser.role)) {
+        if (currentUser.role === "housekeeping") currentAdminView = "housekeeping";
+        else if (currentUser.role === "maintenance") currentAdminView = "maintenance";
+        else if (currentUser.role === "accountant") currentAdminView = "payments";
+        else if (currentUser.role === "receptionist") currentAdminView = "bookings";
+        else currentAdminView = "overview";
+    }
 
     // Load active view
     switchAdminView(currentAdminView);
@@ -1079,16 +1105,17 @@ function switchAdminView(viewId, clickedNavEl) {
     const titles = {
         overview: "Dashboard Overview",
         rooms: "Room Catalog Management",
-        bookings: "Guest Bookings & Reservations",
-        customers: "Customer Accounts & Profiles",
-        staff: "Hotel Staff Directory",
+        bookings: "Front Desk & Reservations",
+        customers: "Guest Directory & Profiles",
+        staff: "Staff Account Management",
         housekeeping: "Housekeeping & Room Cleanliness",
-        payments: "Payment Transactions & Settlements",
+        maintenance: "Facility Maintenance Tracker",
+        payments: "Billing & Payment Transactions",
         analytics: "Reports & Performance Analytics",
         settings: "Hotel Configuration & Policies"
     };
     const titleEl = document.getElementById("adminViewTitle");
-    if (titleEl) titleEl.textContent = titles[viewId] || "Admin Dashboard";
+    if (titleEl) titleEl.textContent = titles[viewId] || "Hotel Operations Portal";
 
     // Load view data
     if (viewId === "overview") loadAdminOverview();
@@ -1097,6 +1124,7 @@ function switchAdminView(viewId, clickedNavEl) {
     else if (viewId === "customers") loadAdminCustomers();
     else if (viewId === "staff") loadAdminStaff();
     else if (viewId === "housekeeping") loadAdminHousekeeping();
+    else if (viewId === "maintenance") loadAdminMaintenance();
     else if (viewId === "payments") loadAdminPayments();
     else if (viewId === "analytics") loadAdminAnalytics();
     else if (viewId === "settings") loadAdminSettings();
@@ -2538,9 +2566,10 @@ function showSection(section) {
         window.scrollTo({ top: 0 });
         loadMyBookings();
     } else if (section === "admin") {
-        if (!currentUser || currentUser.role !== "admin") {
-            showToast("Administrator privileges required.", "error");
-            showSection("home");
+        const staffRoles = ["owner", "admin", "manager", "receptionist", "housekeeping", "accountant", "maintenance"];
+        if (!currentUser || !staffRoles.includes(currentUser.role)) {
+            showToast("Staff or Owner credentials required to access the operations portal.", "error");
+            openAuth("login");
             return;
         }
         adminEl.classList.remove("hidden");
@@ -2593,6 +2622,460 @@ function setMinDates() {
         }
     });
 }
+
+// ======================================
+// 15. MULTI-TENANT SAAS OPERATIONS HELPERS
+// ======================================
+
+function scrollToId(id) {
+    showSection('home');
+    setTimeout(function() {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+}
+
+function fillLoginForm(email, password) {
+    const emailInput = document.getElementById("email");
+    const pwdInput = document.getElementById("password");
+    if (emailInput) emailInput.value = email;
+    if (pwdInput) pwdInput.value = password;
+}
+
+async function quickLogin(role) {
+    const credentials = {
+        owner: { email: "admin@stayease.com", password: "admin123" },
+        manager: { email: "manager@stayease.com", password: "staff123" },
+        receptionist: { email: "receptionist@stayease.com", password: "staff123" },
+        housekeeping: { email: "housekeeping@stayease.com", password: "staff123" },
+        accountant: { email: "accountant@stayease.com", password: "staff123" },
+        maintenance: { email: "maintenance@stayease.com", password: "staff123" }
+    };
+
+    const cred = credentials[role];
+    if (!cred) return;
+
+    showToast("Authenticating as " + role.toUpperCase() + "...", "success");
+
+    try {
+        const response = await fetch(API + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cred)
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Authentication failed");
+
+        currentUser = result.user || result.customer;
+        localStorage.setItem("customer", JSON.stringify(currentUser));
+        localStorage.setItem("access_token", result.access_token);
+        if (result.hotel) {
+            localStorage.setItem("current_hotel", JSON.stringify(result.hotel));
+        }
+
+        showToast("Logged in as " + currentUser.name + " (" + (currentUser.role || "staff").toUpperCase() + ")!");
+        updateNavbar();
+        showSection("admin");
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
+function openOwnerRegister() {
+    document.getElementById("ownerRegisterModal").style.display = "flex";
+}
+
+function closeOwnerRegister() {
+    document.getElementById("ownerRegisterModal").style.display = "none";
+}
+
+async function handleOwnerRegisterSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("regOwnerSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Setting up property & account...";
+
+    const errAlert = document.getElementById("ownerRegisterErrorAlert");
+    if (errAlert) errAlert.classList.add("hidden");
+
+    const payload = {
+        full_name: document.getElementById("regOwnerName").value.trim(),
+        email: document.getElementById("regOwnerEmail").value.trim(),
+        phone: document.getElementById("regOwnerPhone").value.trim(),
+        password: document.getElementById("regOwnerPassword").value,
+        confirm_password: document.getElementById("regOwnerConfirmPassword").value,
+        hotel_name: document.getElementById("regHotelName").value.trim(),
+        hotel_category: document.getElementById("regHotelCategory").value,
+        address: document.getElementById("regHotelAddress").value.trim(),
+        city: document.getElementById("regHotelCity").value.trim(),
+        state: document.getElementById("regHotelState").value.trim(),
+        country: document.getElementById("regHotelCountry").value.trim(),
+        total_rooms: parseInt(document.getElementById("regHotelTotalRooms").value) || 10,
+        contact_number: document.getElementById("regHotelContact").value.trim(),
+        hotel_email: document.getElementById("regHotelEmail").value.trim()
+    };
+
+    if (payload.password !== payload.confirm_password) {
+        if (errAlert) {
+            errAlert.textContent = "⚠️ Passwords do not match.";
+            errAlert.classList.remove("hidden");
+        }
+        btn.disabled = false;
+        btn.textContent = "Complete Registration & Launch Owner Dashboard →";
+        return;
+    }
+
+    try {
+        const response = await fetch(API + "/auth/register-owner", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Registration failed");
+
+        currentUser = result.user;
+        localStorage.setItem("customer", JSON.stringify(currentUser));
+        localStorage.setItem("access_token", result.access_token);
+        if (result.hotel) {
+            localStorage.setItem("current_hotel", JSON.stringify(result.hotel));
+        }
+
+        showToast("Welcome to StayEase! Your hotel property is online.");
+        closeOwnerRegister();
+        updateNavbar();
+        showSection("admin");
+    } catch (err) {
+        if (errAlert) {
+            errAlert.textContent = "⚠️ " + err.message;
+            errAlert.classList.remove("hidden");
+        }
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Complete Registration & Launch Owner Dashboard →";
+    }
+}
+
+function adaptSidebarForRole(role) {
+    const navItems = document.querySelectorAll(".admin-nav-item");
+    navItems.forEach(function (item) {
+        const rolesAttr = item.getAttribute("data-roles") || "";
+        const allowed = rolesAttr.split(",").map(function(r) { return r.trim(); });
+        if (!rolesAttr || role === "owner" || role === "admin" || allowed.includes(role)) {
+            item.style.display = "flex";
+        } else {
+            item.style.display = "none";
+        }
+    });
+}
+
+function isViewAllowedForRole(viewId, role) {
+    if (role === "owner" || role === "admin") return true;
+    const item = Array.from(document.querySelectorAll(".admin-nav-item")).find(function(it) {
+        return it.getAttribute("onclick") && it.getAttribute("onclick").includes("'" + viewId + "'");
+    });
+    if (!item) return false;
+    const rolesAttr = item.getAttribute("data-roles") || "";
+    const allowed = rolesAttr.split(",").map(function(r) { return r.trim(); });
+    return allowed.includes(role);
+}
+
+// Front Desk Walk-in & Reservation Handlers
+let frontDeskRoomsCache = [];
+
+async function openFrontDeskReservationModal() {
+    try {
+        const response = await authFetch("/api/rooms");
+        const rooms = await response.json();
+        frontDeskRoomsCache = rooms;
+
+        const select = document.getElementById("fdRoomSelect");
+        if (select) {
+            select.innerHTML = '<option value="">-- Choose a Room --</option>' +
+                rooms.map(function(r) {
+                    return '<option value="' + r.id + '" data-price="' + r.price + '">' +
+                        'Room ' + r.room_number + ' (' + r.room_type + ' - ₹' + r.price + '/night) [' + r.operational_status + ']' +
+                    '</option>';
+                }).join("");
+        }
+
+        const today = new Date().toISOString().split("T")[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+        document.getElementById("fdCheckIn").value = today;
+        document.getElementById("fdCheckIn").min = today;
+        document.getElementById("fdCheckOut").value = tomorrow;
+        document.getElementById("fdCheckOut").min = tomorrow;
+
+        calculateFrontDeskPrice();
+        document.getElementById("frontDeskReservationModal").style.display = "flex";
+    } catch (e) {
+        showToast("Error loading rooms: " + e.message, "error");
+    }
+}
+
+function closeFrontDeskReservationModal() {
+    document.getElementById("frontDeskReservationModal").style.display = "none";
+}
+
+function calculateFrontDeskPrice() {
+    const roomSelect = document.getElementById("fdRoomSelect");
+    const checkIn = document.getElementById("fdCheckIn").value;
+    const checkOut = document.getElementById("fdCheckOut").value;
+
+    const rateEl = document.getElementById("fdNightlyRate");
+    const totalEl = document.getElementById("fdTotalAmount");
+
+    if (!roomSelect.value || !checkIn || !checkOut) {
+        if (rateEl) rateEl.textContent = "₹0 / night";
+        if (totalEl) totalEl.textContent = "₹0";
+        return;
+    }
+
+    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+    const price = parseFloat(selectedOption.getAttribute("data-price") || 0);
+
+    const d1 = new Date(checkIn);
+    const d2 = new Date(checkOut);
+    const diffDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+
+    const total = price * diffDays;
+    if (rateEl) rateEl.textContent = "₹" + price.toLocaleString("en-IN") + " / night";
+    if (totalEl) totalEl.textContent = "₹" + total.toLocaleString("en-IN") + " (" + diffDays + " night" + (diffDays > 1 ? "s" : "") + ")";
+}
+
+async function handleFrontDeskReservationSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("fdSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Processing Check-in...";
+
+    const alertEl = document.getElementById("frontDeskErrorAlert");
+    if (alertEl) alertEl.classList.add("hidden");
+
+    const payload = {
+        guest_name: document.getElementById("fdGuestName").value.trim(),
+        guest_phone: document.getElementById("fdGuestPhone").value.trim(),
+        guest_email: document.getElementById("fdGuestEmail").value.trim(),
+        guest_id_proof_type: document.getElementById("fdGuestIdProofType").value,
+        guest_id_proof_number: document.getElementById("fdGuestIdProofNumber").value.trim(),
+        room_id: parseInt(document.getElementById("fdRoomSelect").value),
+        check_in: document.getElementById("fdCheckIn").value,
+        check_out: document.getElementById("fdCheckOut").value,
+        number_of_guests: parseInt(document.getElementById("fdGuestsCount").value) || 1,
+        booking_source: document.getElementById("fdBookingSource").value,
+        payment_method: document.getElementById("fdPaymentMethod").value,
+        payment_status: document.getElementById("fdPaymentStatus").value
+    };
+
+    try {
+        const response = await authFetch("/api/reservations", {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Failed to create reservation");
+
+        showToast(result.message || "Reservation confirmed successfully!");
+        closeFrontDeskReservationModal();
+        document.getElementById("frontDeskReservationForm").reset();
+        loadAdminBookings();
+        loadAdminRooms();
+    } catch (err) {
+        if (alertEl) {
+            alertEl.textContent = "⚠️ " + err.message;
+            alertEl.classList.remove("hidden");
+        }
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Confirm Reservation & Allocate Room →";
+    }
+}
+
+// Maintenance Handlers
+let adminMaintenanceData = [];
+
+async function loadAdminMaintenance() {
+    try {
+        const response = await authFetch("/api/maintenance");
+        const tickets = await response.json();
+        adminMaintenanceData = tickets;
+        renderAdminMaintenanceTable(tickets);
+    } catch (err) {
+        console.error("Maintenance error:", err);
+    }
+}
+
+function renderAdminMaintenanceTable(tickets) {
+    const tbody = document.getElementById("adminMaintenanceBody");
+    if (!tbody) return;
+
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No maintenance tickets logged. All rooms operational.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = tickets.map(function(t) {
+        const priorityClass = "priority-" + t.priority.toLowerCase();
+        const statusClass = t.status === "Resolved" ? "status-confirmed" : (t.status === "In Progress" ? "status-pending" : "status-cancelled");
+        const actionBtn = t.status !== "Resolved"
+            ? '<button class="action-btn pay-btn" onclick="resolveMaintenanceTicket(' + t.id + ')">Mark Resolved</button>'
+            : '<span style="color:#2e7d32; font-weight:600; font-size:12px;">✓ Completed</span>';
+
+        return '<tr>' +
+            '<td><strong>#TKT-' + t.id + '</strong></td>' +
+            '<td>Room ' + escapeHTML(t.room_number) + '</td>' +
+            '<td>' + escapeHTML(t.reported_by_name) + '</td>' +
+            '<td>' + escapeHTML(t.issue_description) + '</td>' +
+            '<td><span class="priority-badge ' + priorityClass + '">' + escapeHTML(t.priority) + '</span></td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + escapeHTML(t.status) + '</span></td>' +
+            '<td>' + (t.created_at ? t.created_at.split("T")[0] : "-") + '</td>' +
+            '<td>' + actionBtn + '</td>' +
+        '</tr>';
+    }).join("");
+}
+
+function filterAdminMaintenanceTable() {
+    const searchVal = (document.getElementById("adminMaintenanceSearch").value || "").toLowerCase().trim();
+    const priorityVal = document.getElementById("adminMaintenancePriorityFilter").value;
+    const statusVal = document.getElementById("adminMaintenanceStatusFilter").value;
+
+    const filtered = adminMaintenanceData.filter(function(t) {
+        const matchSearch = !searchVal || t.room_number.toLowerCase().includes(searchVal) || t.issue_description.toLowerCase().includes(searchVal);
+        const matchPriority = !priorityVal || t.priority === priorityVal;
+        const matchStatus = !statusVal || t.status === statusVal;
+        return matchSearch && matchPriority && matchStatus;
+    });
+
+    renderAdminMaintenanceTable(filtered);
+}
+
+async function openReportMaintenanceModal() {
+    try {
+        const response = await authFetch("/api/rooms");
+        const rooms = await response.json();
+        const select = document.getElementById("maintRoomSelect");
+        if (select) {
+            select.innerHTML = '<option value="">-- Choose a Room --</option>' +
+                rooms.map(function(r) {
+                    return '<option value="' + r.id + '">Room ' + r.room_number + ' (' + r.room_type + ')</option>';
+                }).join("");
+        }
+        document.getElementById("maintenanceModal").style.display = "flex";
+    } catch (e) {
+        showToast("Error loading rooms: " + e.message, "error");
+    }
+}
+
+function closeMaintenanceModal() {
+    document.getElementById("maintenanceModal").style.display = "none";
+}
+
+async function handleReportMaintenanceSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("maintSubmitBtn");
+    btn.disabled = true;
+
+    try {
+        const response = await authFetch("/api/maintenance", {
+            method: "POST",
+            body: JSON.stringify({
+                room_id: parseInt(document.getElementById("maintRoomSelect").value),
+                issue_description: document.getElementById("maintDescription").value.trim(),
+                priority: document.getElementById("maintPriority").value
+            })
+        });
+
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.detail || "Failed to file ticket");
+
+        showToast("Maintenance ticket filed successfully.");
+        closeMaintenanceModal();
+        document.getElementById("maintenanceForm").reset();
+        loadAdminMaintenance();
+        loadAdminRooms();
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function resolveMaintenanceTicket(ticketId) {
+    try {
+        const response = await authFetch("/api/maintenance/" + ticketId, {
+            method: "PUT",
+            body: JSON.stringify({ status: "Resolved" })
+        });
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.detail || "Failed to resolve ticket");
+
+        showToast("Ticket marked as Resolved.");
+        loadAdminMaintenance();
+        loadAdminRooms();
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
+// Guest Handlers
+function openAddGuestModal() { document.getElementById("addGuestModal").style.display = "flex"; }
+function closeAddGuestModal() { document.getElementById("addGuestModal").style.display = "none"; }
+
+async function handleAddGuestSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("newGuestSubmitBtn");
+    btn.disabled = true;
+
+    try {
+        const response = await authFetch("/api/guests", {
+            method: "POST",
+            body: JSON.stringify({
+                full_name: document.getElementById("newGuestName").value.trim(),
+                phone: document.getElementById("newGuestPhone").value.trim(),
+                email: document.getElementById("newGuestEmail").value.trim(),
+                id_proof_type: document.getElementById("newGuestIdType").value,
+                id_proof_number: document.getElementById("newGuestIdNumber").value.trim(),
+                address: document.getElementById("newGuestAddress").value.trim()
+            })
+        });
+
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.detail || "Failed to add guest");
+
+        showToast(res.message || "Guest profile created!");
+        closeAddGuestModal();
+        document.getElementById("addGuestForm").reset();
+        loadAdminCustomers();
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Housekeeping Fast Setter
+async function quickSetHousekeeping(roomId, status) {
+    try {
+        const response = await authFetch("/api/housekeeping/" + roomId, {
+            method: "PUT",
+            body: JSON.stringify({ cleaning_status: status })
+        });
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.detail || "Failed to update housekeeping");
+
+        showToast("Room status updated to " + status);
+        loadAdminHousekeeping();
+        loadAdminRooms();
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
 
 function initializeWebsite() {
     updateNavbar();
