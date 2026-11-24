@@ -19,8 +19,10 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 
 # Safe fallback for local/offline development and Vercel build inspection
 if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./stayease_local.db"
-    print("[StayEase] Notice: DATABASE_URL environment variable is missing. Falling back to local SQLite database: stayease_local.db")
+    # On Vercel Serverless (AWS Lambda), only /tmp is writable; ./ is read-only
+    db_path = "/tmp/stayease_local.db" if os.path.exists("/tmp") else "./stayease_local.db"
+    DATABASE_URL = f"sqlite:///{db_path}"
+    print(f"[StayEase] Notice: DATABASE_URL environment variable is missing. Falling back to SQLite database: {db_path}")
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 

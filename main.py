@@ -30,30 +30,24 @@ PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
 
 # ==========================================
-# 1. APPLICATION LIFESPAN & INITIALIZATION
+# 1. APPLICATION LIFESPAN & AUTO-INITIALIZATION
 # ==========================================
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def ensure_database_initialized():
     """
-    Safely creates tables and initializes default administrator on startup
-    without dropping or modifying existing customer or booking records.
+    Safely creates tables and initial sample data if not already present.
+    Self-heals empty cloud databases and local SQLite fallbacks.
     """
     try:
-        # Create missing tables safely (non-destructive)
         Base.metadata.create_all(bind=engine)
-
-        # Check / create default administrator
         db = Session(bind=engine)
         try:
+            # 1. Ensure Default Administrator
             admin_email = os.getenv("ADMIN_EMAIL", "admin@stayease.com")
             admin_pwd = os.getenv("ADMIN_PASSWORD", "admin123")
             admin_name = os.getenv("ADMIN_NAME", "StayEase Administrator")
 
-            existing_admin = db.query(Customer).filter(
-                Customer.email == admin_email
-            ).first()
-
+            existing_admin = db.query(Customer).filter(Customer.email == admin_email).first()
             if not existing_admin:
                 admin_user = Customer(
                     name=admin_name,
@@ -66,9 +60,8 @@ async def lifespan(app: FastAPI):
                 db.commit()
                 print(f"[StayEase] Default admin initialized: {admin_email}")
 
-            # Check / create default hotel settings
-            existing_settings = db.query(HotelSetting).first()
-            if not existing_settings:
+            # 2. Ensure Hotel Settings
+            if not db.query(HotelSetting).first():
                 settings = HotelSetting(
                     hotel_name="StayEase Hotel & Luxury Suites",
                     contact_email="contact@stayease.com",
@@ -81,12 +74,84 @@ async def lifespan(app: FastAPI):
                 db.add(settings)
                 db.commit()
                 print("[StayEase] Default hotel settings initialized.")
+
+            # 3. Ensure Sample Rooms exist if catalog is empty
+            if db.query(Room).count() == 0:
+                sample_rooms = [
+                    Room(
+                        room_number="101",
+                        room_type="Standard",
+                        price=1800.0,
+                        capacity=2,
+                        description="Cozy room with queen bed, high-speed WiFi, work desk, and en-suite bathroom.",
+                        image_url="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=700",
+                        status="Available"
+                    ),
+                    Room(
+                        room_number="102",
+                        room_type="Standard",
+                        price=1800.0,
+                        capacity=2,
+                        description="Peaceful standard room facing the inner garden with air conditioning and smart TV.",
+                        image_url="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=700",
+                        status="Available"
+                    ),
+                    Room(
+                        room_number="201",
+                        room_type="Deluxe",
+                        price=3000.0,
+                        capacity=3,
+                        description="Spacious deluxe room with king bed, private balcony, mini-bar, and city view.",
+                        image_url="https://images.unsplash.com/photo-1590490360182-c33d955571d7?w=700",
+                        status="Available"
+                    ),
+                    Room(
+                        room_number="202",
+                        room_type="Deluxe",
+                        price=3200.0,
+                        capacity=3,
+                        description="Premium deluxe room featuring modern interior, sofa lounger, and complimentary breakfast.",
+                        image_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=700",
+                        status="Available"
+                    ),
+                    Room(
+                        room_number="301",
+                        room_type="Suite",
+                        price=5000.0,
+                        capacity=4,
+                        description="Executive luxury suite with separated living room, jacuzzi tub, and panoramic skyline views.",
+                        image_url="https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=700",
+                        status="Available"
+                    ),
+                    Room(
+                        room_number="302",
+                        room_type="Suite",
+                        price=5500.0,
+                        capacity=4,
+                        description="Presidential penthouse suite featuring private terrace, dining area, butler pantry, and master jacuzzi.",
+                        image_url="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=700",
+                        status="Available"
+                    )
+                ]
+                db.add_all(sample_rooms)
+                db.commit()
+                print("[StayEase] Sample room catalog auto-seeded successfully.")
         finally:
             db.close()
-
     except Exception as e:
-        print(f"[StayEase] Startup initialization notice: {e}")
+        print(f"[StayEase] Auto-initialization notice: {e}")
 
+
+# Run initialization on import
+ensure_database_initialized()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan event handler for ASGI runners.
+    """
+    ensure_database_initialized()
     yield
 
 
@@ -487,6 +552,12 @@ def get_rooms(
     Retrieve all hotel rooms with optional filtering by type, price range,
     minimum guest capacity, and date availability.
     """
+    try:
+        if db.query(Room).count() == 0:
+            ensure_database_initialized()
+    except Exception:
+        ensure_database_initialized()
+
     query = db.query(Room)
 
     if room_type:

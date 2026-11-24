@@ -351,8 +351,15 @@ async function loadRooms(queryParams = "") {
         const url = API + "/rooms" + (queryParams ? "?" + queryParams : "");
         const response = await fetch(url);
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Unable to load rooms");
+            let errorMsg = "Unable to load rooms";
+            try {
+                const err = await response.json();
+                errorMsg = err.detail || errorMsg;
+            } catch (_) {
+                const text = await response.text();
+                errorMsg = text || response.statusText || errorMsg;
+            }
+            throw new Error(errorMsg);
         }
 
         const rooms = await response.json();
