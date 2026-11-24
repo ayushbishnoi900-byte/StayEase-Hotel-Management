@@ -353,12 +353,16 @@ async function loadRooms(queryParams = "") {
         if (!response.ok) {
             let errorMsg = "Unable to load rooms";
             try {
-                const err = await response.json();
-                errorMsg = err.detail || errorMsg;
-            } catch (_) {
-                const text = await response.text();
-                errorMsg = text || response.statusText || errorMsg;
-            }
+                const rawText = await response.text();
+                try {
+                    const err = JSON.parse(rawText);
+                    errorMsg = err.detail || errorMsg;
+                } catch (_) {
+                    if (rawText && rawText.length < 200) {
+                        errorMsg = rawText;
+                    }
+                }
+            } catch (_) {}
             throw new Error(errorMsg);
         }
 

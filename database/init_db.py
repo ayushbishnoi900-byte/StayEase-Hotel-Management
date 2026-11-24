@@ -5,6 +5,7 @@
 # ==========================================
 
 import os
+from sqlalchemy import text
 from database.database import engine, Base, SessionLocal
 from database.models import Room, Customer, Booking, Payment, Staff, HotelSetting
 from pwdlib import PasswordHash
@@ -20,7 +21,23 @@ def initialize_database():
     """
     print("\n=== StayEase Safe Database Setup ===")
 
-    # 1. Create tables if they do not exist (non-destructive)
+    # 1. Apply column migrations if using PostgreSQL
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'customer';"))
+            conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Active';"))
+            conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';"))
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';"))
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS housekeeping_status VARCHAR DEFAULT 'Clean';"))
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS last_cleaned TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guests INTEGER DEFAULT 1;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+            conn.commit()
+            print("✓ PostgreSQL schema columns verified and updated.")
+
+    # 2. Create tables if they do not exist (non-destructive)
     Base.metadata.create_all(bind=engine)
     print("✓ Database tables verified and created if missing.")
 
