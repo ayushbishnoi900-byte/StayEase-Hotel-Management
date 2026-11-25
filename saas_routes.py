@@ -111,11 +111,13 @@ class StaffAccountCreateRequest(BaseModel):
 
 class StaffAccountUpdateRequest(BaseModel):
     full_name: Optional[str] = None
+    name: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
     designation: Optional[str] = None
     department: Optional[str] = None
     status: Optional[str] = None
+    password: Optional[str] = None
 
 
 class StaffResetPasswordRequest(BaseModel):
@@ -498,8 +500,9 @@ def get_hotel_dashboard_metrics(
 
     # 3. Guests & Staff
     total_guests = db.query(Guest).filter(Guest.hotel_id == hotel_id).count()
-    total_staff = db.query(User).filter(User.hotel_id == hotel_id, User.role != "owner").count()
-    active_staff = db.query(User).filter(User.hotel_id == hotel_id, User.is_active == True, User.role != "owner").count()
+    staff_roles = ["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"]
+    total_staff = db.query(User).filter(User.hotel_id == hotel_id, User.role.in_(staff_roles)).count()
+    active_staff = db.query(User).filter(User.hotel_id == hotel_id, User.is_active == True, User.role.in_(staff_roles)).count()
 
     # 4. Revenue & Payments
     completed_payments = db.query(Payment).filter(
@@ -1251,9 +1254,10 @@ def list_hotel_staff(
 ):
     """List all staff accounts belonging to current_user.hotel_id."""
     hotel_id = current_user.hotel_id or 1
+    staff_roles = ["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"]
     staff_members = db.query(User).filter(
         User.hotel_id == hotel_id,
-        User.role != "owner"
+        User.role.in_(staff_roles)
     ).order_by(User.id.asc()).all()
 
     return [
@@ -1352,12 +1356,14 @@ def update_staff_account(
     if staff.role == "owner":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot modify hotel owner account.")
 
-    if data.full_name is not None:
+    if data.full_name is not None and data.full_name.strip():
         staff.full_name = data.full_name.strip()
+    elif data.name is not None and data.name.strip():
+        staff.full_name = data.name.strip()
     if data.phone is not None:
         staff.phone = data.phone.strip()
     if data.role is not None:
-        valid_roles = ["manager", "receptionist", "housekeeping", "accountant", "maintenance"]
+        valid_roles = ["manager", "receptionist", "housekeeping", "accountant", "maintenance", "staff"]
         if data.role.lower() not in valid_roles:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role '{data.role}'.")
         staff.role = data.role.lower().strip()
@@ -1368,6 +1374,8 @@ def update_staff_account(
     if data.status is not None:
         staff.status = data.status.strip()
         staff.is_active = (data.status.strip().lower() == "active")
+    if data.password is not None and data.password.strip():
+        staff.hashed_password = password_hash.hash(data.password.strip())
 
     db.commit()
     db.refresh(staff)

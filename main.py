@@ -32,6 +32,8 @@ from jose import jwt, JWTError
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
+password_hash = PasswordHash.recommended()
+
 
 # ==========================================
 # 1. APPLICATION LIFESPAN & AUTO-INITIALIZATION
@@ -203,8 +205,6 @@ app.include_router(saas_router)
 # 2. SECURITY CONFIGURATION
 # ==========================================
 
-password_hash = PasswordHash.recommended()
-
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
     SECRET_KEY = "dev-insecure-key-set-secret-key-in-production-env"
@@ -289,18 +289,26 @@ class PaymentStatusUpdateRequest(BaseModel):
 
 # Staff Schemas
 class StaffCreateRequest(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
+    name: str = ""
+    full_name: str | None = None
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     phone: str = ""
-    designation: str = Field(min_length=2, max_length=100)
+    role: str = "receptionist"
+    designation: str = ""
+    department: str = ""
     status: str = "Active"
+    password: str = "staff123"
 
 
 class StaffUpdateRequest(BaseModel):
     name: str | None = None
+    full_name: str | None = None
     phone: str | None = None
+    role: str | None = None
     designation: str | None = None
+    department: str | None = None
     status: str | None = None
+    password: str | None = None
 
 
 # Customer Management Schemas (Admin)
@@ -698,18 +706,22 @@ def add_room(
 ):
     """
     Add a new room to the hotel catalog (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
+    hotel_id = getattr(admin, "hotel_id", None) or 1
     existing_room = db.query(Room).filter(
+        Room.hotel_id == hotel_id,
         Room.room_number == data.room_number.strip()
     ).first()
 
     if existing_room:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Room number {data.room_number} already exists."
+            detail=f"Room number {data.room_number} already exists in your hotel."
         )
 
     new_room = Room(
+        hotel_id=hotel_id,
         room_number=data.room_number.strip(),
         room_type=data.room_type.strip(),
         price=data.price,
@@ -738,8 +750,10 @@ def update_room(
 ):
     """
     Update room information (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    room = db.query(Room).filter(Room.id == room_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    room = db.query(Room).filter(Room.id == room_id, Room.hotel_id == hotel_id).first()
     if not room:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -749,13 +763,14 @@ def update_room(
     if data.room_number is not None:
         # Check uniqueness if room_number changed
         duplicate = db.query(Room).filter(
+            Room.hotel_id == hotel_id,
             Room.room_number == data.room_number.strip(),
             Room.id != room_id
         ).first()
         if duplicate:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Room number {data.room_number} is already in use."
+                detail=f"Room number {data.room_number} is already in use in your hotel."
             )
         room.room_number = data.room_number.strip()
 
@@ -797,8 +812,10 @@ def delete_room(
     """
     Safely delete a room (Admin only).
     Guards against deleting rooms that have active Confirmed reservations.
+    Scoped strictly to the authenticated hotel tenant.
     """
-    room = db.query(Room).filter(Room.id == room_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    room = db.query(Room).filter(Room.id == room_id, Room.hotel_id == hotel_id).first()
     if not room:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -807,6 +824,7 @@ def delete_room(
 
     # Check for active bookings
     active_bookings = db.query(Booking).filter(
+        Booking.hotel_id == hotel_id,
         Booking.room_id == room_id,
         Booking.status == "Confirmed"
     ).count()
@@ -1345,8 +1363,10 @@ def admin_get_all_payments(
 ):
     """
     View all payment transactions across the hotel with optional search and status filtering (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    query = db.query(Payment)
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    query = db.query(Payment).filter(Payment.hotel_id == hotel_id)
 
     if status and status.strip():
         query = query.filter(Payment.payment_status == status.strip())
@@ -1357,7 +1377,7 @@ def admin_get_all_payments(
     search_term = search.strip().lower() if search else None
 
     for p in payments:
-        booking = db.query(Booking).filter(Booking.id == p.booking_id).first()
+        booking = db.query(Booking).filter(Booking.id == p.booking_id, Booking.hotel_id == hotel_id).first()
         cust = db.query(Customer).filter(Customer.id == booking.customer_id).first() if booking else None
         room = db.query(Room).filter(Room.id == booking.room_id).first() if booking else None
 
@@ -1403,8 +1423,10 @@ def admin_update_payment_status(
 ):
     """
     Update payment status (e.g. mark cash payment as 'Completed' upon front desk settlement).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    payment = db.query(Payment).filter(Payment.id == payment_id, Payment.hotel_id == hotel_id).first()
     if not payment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1439,8 +1461,11 @@ def admin_get_staff(
 ):
     """
     List all hotel staff members (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
+    hotel_id = getattr(admin, "hotel_id", None) or 1
     staff_members = db.query(Staff).filter(
+        Staff.hotel_id == hotel_id,
         Staff.role.in_(["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"])
     ).order_by(Staff.id.asc()).all()
 
@@ -1448,10 +1473,14 @@ def admin_get_staff(
         {
             "id": s.id,
             "name": s.name,
+            "full_name": s.name,
             "email": s.email,
-            "phone": s.phone,
-            "designation": s.designation,
-            "status": s.status,
+            "phone": s.phone or "",
+            "role": s.role or "staff",
+            "designation": s.designation or (s.role or "staff").title(),
+            "department": getattr(s, "department", "") or (s.role or "staff").title(),
+            "status": s.status or ("Active" if s.is_active else "Inactive"),
+            "is_active": s.is_active,
             "created_at": s.created_at.isoformat() if s.created_at else None
         }
         for s in staff_members
@@ -1466,8 +1495,10 @@ def admin_get_staff_member(
 ):
     """
     Retrieve details for a single staff member (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    s = db.query(Staff).filter(Staff.id == staff_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    s = db.query(Staff).filter(Staff.id == staff_id, Staff.hotel_id == hotel_id).first()
     if not s:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1477,10 +1508,14 @@ def admin_get_staff_member(
     return {
         "id": s.id,
         "name": s.name,
+        "full_name": s.name,
         "email": s.email,
-        "phone": s.phone,
-        "designation": s.designation,
-        "status": s.status,
+        "phone": s.phone or "",
+        "role": s.role or "staff",
+        "designation": s.designation or (s.role or "staff").title(),
+        "department": getattr(s, "department", "") or (s.role or "staff").title(),
+        "status": s.status or ("Active" if s.is_active else "Inactive"),
+        "is_active": s.is_active,
         "created_at": s.created_at.isoformat() if s.created_at else None
     }
 
@@ -1492,21 +1527,41 @@ def admin_add_staff(
     db: Session = Depends(get_db)
 ):
     """
-    Add a new staff member (Admin only).
+    Add a new staff member with role and password (Admin / Owner only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    existing = db.query(Staff).filter(Staff.email == data.email.strip()).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    email = data.email.lower().strip()
+    existing = db.query(Staff).filter(Staff.email == email).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Staff member with email '{data.email}' already exists."
         )
 
+    valid_roles = ["manager", "receptionist", "housekeeping", "accountant", "maintenance", "staff"]
+    role = (data.role or "receptionist").lower().strip()
+    if role not in valid_roles:
+        role = "staff"
+
+    name = (data.full_name or data.name or "").strip()
+    if not name:
+        name = "Staff Member"
+
+    raw_password = data.password or "staff123"
+    hashed_pwd = password_hash.hash(raw_password)
+
     new_staff = Staff(
-        name=data.name.strip(),
-        email=data.email.strip(),
-        phone=data.phone.strip(),
-        designation=data.designation.strip(),
-        status=data.status.strip()
+        name=name,
+        email=email,
+        phone=data.phone.strip() if data.phone else "",
+        designation=(data.designation or role.title()).strip(),
+        department=(data.department or role.title()).strip(),
+        role=role,
+        status=data.status.strip() if data.status else "Active",
+        is_active=(data.status.strip() != "Inactive" if data.status else True),
+        hotel_id=hotel_id,
+        password=hashed_pwd
     )
 
     db.add(new_staff)
@@ -1514,8 +1569,18 @@ def admin_add_staff(
     db.refresh(new_staff)
 
     return {
-        "message": "Staff member added successfully.",
-        "staff_id": new_staff.id
+        "message": f"Staff account created for {new_staff.name} ({new_staff.role}).",
+        "staff_id": new_staff.id,
+        "staff": {
+            "id": new_staff.id,
+            "name": new_staff.name,
+            "full_name": new_staff.name,
+            "email": new_staff.email,
+            "phone": new_staff.phone,
+            "role": new_staff.role,
+            "designation": new_staff.designation,
+            "status": new_staff.status
+        }
     }
 
 
@@ -1527,23 +1592,34 @@ def admin_update_staff(
     db: Session = Depends(get_db)
 ):
     """
-    Update staff member details (Admin only).
+    Update staff member details, role, status, or password (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    s = db.query(Staff).filter(Staff.id == staff_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    s = db.query(Staff).filter(Staff.id == staff_id, Staff.hotel_id == hotel_id).first()
     if not s:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found."
         )
 
-    if data.name is not None:
+    if data.name is not None and data.name.strip():
         s.name = data.name.strip()
+    if data.full_name is not None and data.full_name.strip():
+        s.name = data.full_name.strip()
     if data.phone is not None:
         s.phone = data.phone.strip()
+    if data.role is not None and data.role.strip():
+        s.role = data.role.lower().strip()
     if data.designation is not None:
         s.designation = data.designation.strip()
+    if data.department is not None:
+        s.department = data.department.strip()
     if data.status is not None:
         s.status = data.status.strip()
+        s.is_active = (s.status != "Inactive")
+    if data.password is not None and data.password.strip():
+        s.hashed_password = password_hash.hash(data.password.strip())
 
     db.commit()
     db.refresh(s)
@@ -1553,8 +1629,10 @@ def admin_update_staff(
         "staff": {
             "id": s.id,
             "name": s.name,
+            "full_name": s.name,
             "email": s.email,
             "phone": s.phone,
+            "role": s.role,
             "designation": s.designation,
             "status": s.status
         }
@@ -1569,18 +1647,25 @@ def admin_delete_staff(
 ):
     """
     Delete a staff member record (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    s = db.query(Staff).filter(Staff.id == staff_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    s = db.query(Staff).filter(Staff.id == staff_id, Staff.hotel_id == hotel_id).first()
     if not s:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found."
         )
+    if s.id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot remove your own administrator account."
+        )
 
     db.delete(s)
     db.commit()
 
-    return {"message": "Staff member deleted successfully."}
+    return {"message": f"Staff member '{s.name}' removed successfully."}
 
 
 # ==========================================
@@ -1594,70 +1679,76 @@ def admin_dashboard(
 ):
     """
     Retrieve consolidated high-level statistics for the management dashboard (Admin only).
-    Returns all 8 required metrics based on actual database records:
-    1. Total Rooms
-    2. Available Rooms
-    3. Occupied Rooms
-    4. Total Customers
-    5. Total Bookings
-    6. Confirmed Bookings
-    7. Cancelled Bookings
-    8. Total Revenue from recorded payments
+    Scoped strictly to the authenticated hotel tenant.
     """
     today = date.today()
-    total_rooms = db.query(Room).count()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    total_rooms = db.query(Room).filter(Room.hotel_id == hotel_id).count()
 
     # Occupied rooms: rooms with Confirmed booking where check_in <= today < check_out, or room.status == 'Occupied'
     occupied_by_booking = db.query(Booking.room_id).filter(
+        Booking.hotel_id == hotel_id,
         Booking.status == "Confirmed",
         Booking.check_in <= today,
         Booking.check_out > today
     ).distinct().all()
     occupied_ids = {r[0] for r in occupied_by_booking}
 
-    explicit_occupied = db.query(Room.id).filter(Room.status == "Occupied").all()
+    explicit_occupied = db.query(Room.id).filter(
+        Room.hotel_id == hotel_id,
+        Room.status == "Occupied"
+    ).all()
     occupied_ids.update(r[0] for r in explicit_occupied)
 
     occupied_rooms = len(occupied_ids)
     available_rooms = max(0, total_rooms - occupied_rooms)
 
-    total_customers = db.query(Customer).filter(
-        Customer.role == "customer"
-    ).count()
+    total_customers = db.query(Guest).filter(Guest.hotel_id == hotel_id).count()
+    if total_customers == 0 and hotel_id == 1:
+        total_customers = db.query(Customer).filter(Customer.role == "customer").count()
 
-    total_bookings = db.query(Booking).count()
+    total_bookings = db.query(Booking).filter(Booking.hotel_id == hotel_id).count()
 
     confirmed_bookings = db.query(Booking).filter(
+        Booking.hotel_id == hotel_id,
         Booking.status == "Confirmed"
     ).count()
 
     cancelled_bookings = db.query(Booking).filter(
+        Booking.hotel_id == hotel_id,
         Booking.status == "Cancelled"
     ).count()
 
     # Total Revenue from recorded completed payments for confirmed bookings
     paid_booking_ids = db.query(Payment.booking_id).filter(
+        Payment.hotel_id == hotel_id,
         Payment.payment_status == "Completed"
     ).distinct()
 
     total_revenue = db.query(
         func.sum(Booking.total_price)
     ).filter(
+        Booking.hotel_id == hotel_id,
         Booking.status == "Confirmed",
         Booking.id.in_(paid_booking_ids)
     ).scalar() or 0.0
 
     total_staff = db.query(Staff).filter(
+        Staff.hotel_id == hotel_id,
         Staff.role.in_(["staff", "manager", "receptionist", "housekeeping", "accountant", "maintenance"])
     ).count()
 
     pending_payments = db.query(Payment).filter(
+        Payment.hotel_id == hotel_id,
         Payment.payment_status == "Pending"
     ).count()
 
     occupancy_rate = round((occupied_rooms / total_rooms * 100), 1) if total_rooms > 0 else 0.0
 
+    hotel = db.query(Hotel).filter(Hotel.id == hotel_id).first()
+
     return {
+        "hotel_name": hotel.hotel_name if hotel else "StayEase Hotel",
         "total_rooms": total_rooms,
         "available_rooms": available_rooms,
         "occupied_rooms": occupied_rooms,
@@ -1682,9 +1773,10 @@ def admin_all_bookings(
 ):
     """
     View all bookings across the hotel with customer, room, and payment information (Admin only).
-    Supports search by booking reference / customer name / email and status filter.
+    Scoped strictly to the authenticated hotel tenant.
     """
-    query = db.query(Booking)
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    query = db.query(Booking).filter(Booking.hotel_id == hotel_id)
 
     if status and status.strip():
         query = query.filter(Booking.status == status.strip())
@@ -1697,7 +1789,7 @@ def admin_all_bookings(
     for b in bookings:
         room = db.query(Room).filter(Room.id == b.room_id).first()
         cust = db.query(Customer).filter(Customer.id == b.customer_id).first()
-        p = db.query(Payment).filter(Payment.booking_id == b.id).order_by(Payment.id.desc()).first()
+        p = db.query(Payment).filter(Payment.booking_id == b.id, Payment.hotel_id == hotel_id).order_by(Payment.id.desc()).first()
 
         booking_ref = f"SE-BK-{b.id:04d}"
         cust_name = cust.name if cust else "Unknown"
@@ -1745,10 +1837,38 @@ def admin_all_customers(
     db: Session = Depends(get_db)
 ):
     """
-    View registered customer accounts with booking count and status (Admin only).
-    Never exposes passwords.
+    View registered customer accounts / guests with booking count and status (Admin only).
+    Scoped strictly to the authenticated hotel tenant.
     """
-    query = db.query(Customer)
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    # Check hotel guests first
+    guest_query = db.query(Guest).filter(Guest.hotel_id == hotel_id)
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        guest_query = guest_query.filter(
+            (Guest.full_name.ilike(term)) |
+            (Guest.email.ilike(term)) |
+            (Guest.phone.ilike(term))
+        )
+    guests = guest_query.order_by(Guest.id.asc()).all()
+    if guests or hotel_id != 1:
+        result = []
+        for g in guests:
+            booking_count = db.query(Reservation).filter(Reservation.guest_id == g.id).count()
+            result.append({
+                "id": g.id,
+                "name": g.full_name,
+                "email": g.email or "N/A",
+                "phone": g.phone or "N/A",
+                "role": "guest",
+                "status": "Active",
+                "total_bookings": booking_count,
+                "created_at": g.created_at.isoformat() if g.created_at else None
+            })
+        return result
+
+    # Fallback for demo hotel 1
+    query = db.query(Customer).filter(Customer.hotel_id == hotel_id)
 
     if search and search.strip():
         term = f"%{search.strip()}%"
@@ -1952,15 +2072,17 @@ def admin_get_housekeeping(
 ):
     """
     List all rooms with housekeeping cleaning status, last cleaned timestamp,
-    and reservation status (Admin only).
+    and reservation status (Admin only). Scoped strictly to authenticated hotel tenant.
     """
     today = date.today()
-    rooms = db.query(Room).order_by(Room.room_number.asc()).all()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    rooms = db.query(Room).filter(Room.hotel_id == hotel_id).order_by(Room.room_number.asc()).all()
 
     result = []
     for r in rooms:
         # Check if currently occupied by a confirmed reservation
         active_booking = db.query(Booking).filter(
+            Booking.hotel_id == hotel_id,
             Booking.room_id == r.id,
             Booking.status == "Confirmed",
             Booking.check_in <= today,
@@ -2002,7 +2124,8 @@ def admin_update_housekeeping(
     """
     Update room cleaning status: Clean, Dirty, Cleaning in Progress, Maintenance Required (Admin only).
     """
-    room = db.query(Room).filter(Room.id == room_id).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    room = db.query(Room).filter(Room.id == room_id, Room.hotel_id == hotel_id).first()
     if not room:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -2041,34 +2164,29 @@ def admin_get_analytics(
 ):
     """
     Generate comprehensive analytical reports from actual database records:
-    - Monthly bookings & revenue trends (last 6 months)
-    - Room occupancy statistics
-    - Popular room categories
-    - Customer statistics & retention
-    - Payment methods breakdown
-    - Housekeeping summary
+    Scoped strictly to the authenticated hotel tenant.
     """
     today = date.today()
-    total_rooms = db.query(Room).count()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    total_rooms = db.query(Room).filter(Room.hotel_id == hotel_id).count()
 
     # 1. Occupancy statistics
     occupied_by_booking = db.query(Booking.room_id).filter(
+        Booking.hotel_id == hotel_id,
         Booking.status == "Confirmed",
         Booking.check_in <= today,
         Booking.check_out > today
     ).distinct().all()
     occupied_ids = {r[0] for r in occupied_by_booking}
-    explicit_occupied = db.query(Room.id).filter(Room.status == "Occupied").all()
+    explicit_occupied = db.query(Room.id).filter(Room.hotel_id == hotel_id, Room.status == "Occupied").all()
     occupied_ids.update(r[0] for r in explicit_occupied)
     occupied_count = len(occupied_ids)
     available_count = max(0, total_rooms - occupied_count)
     occupancy_pct = round((occupied_count / total_rooms * 100), 1) if total_rooms > 0 else 0.0
 
     # 2. Monthly bookings and revenue (last 6 months)
-    # Generate last 6 months list
     months_data = []
     for i in range(5, -1, -1):
-        # Calculate month and year
         year = today.year
         month = today.month - i
         while month <= 0:
@@ -2076,10 +2194,11 @@ def admin_get_analytics(
             year -= 1
         label = f"{year:04d}-{month:02d}"
 
-        # Bookings in this month
         month_bookings = db.query(Booking).filter(
+            Booking.hotel_id == hotel_id,
             func.strftime("%Y-%m", Booking.created_at) == label
         ).all() if "sqlite" in str(db.bind.url) else db.query(Booking).filter(
+            Booking.hotel_id == hotel_id,
             func.to_char(Booking.created_at, "YYYY-MM") == label
         ).all()
 
@@ -2093,14 +2212,14 @@ def admin_get_analytics(
         })
 
     # 3. Popular room categories
-    all_rooms = db.query(Room).all()
+    all_rooms = db.query(Room).filter(Room.hotel_id == hotel_id).all()
     categories_map = {}
     for r in all_rooms:
         if r.room_type not in categories_map:
             categories_map[r.room_type] = {"room_count": 0, "booking_count": 0, "revenue": 0.0}
         categories_map[r.room_type]["room_count"] += 1
 
-    all_confirmed_bookings = db.query(Booking).filter(Booking.status == "Confirmed").all()
+    all_confirmed_bookings = db.query(Booking).filter(Booking.hotel_id == hotel_id, Booking.status == "Confirmed").all()
     for b in all_confirmed_bookings:
         r = db.query(Room).filter(Room.id == b.room_id).first()
         if r and r.room_type in categories_map:
@@ -2118,20 +2237,18 @@ def admin_get_analytics(
     ]
 
     # 4. Customer statistics
-    total_cust = db.query(Customer).filter(Customer.role == "customer").count()
-    active_cust = db.query(Customer).filter(
-        Customer.role == "customer",
-        Customer.status == "Active"
-    ).count()
+    total_cust = db.query(Guest).filter(Guest.hotel_id == hotel_id).count()
+    if total_cust == 0 and hotel_id == 1:
+        total_cust = db.query(Customer).filter(Customer.role == "customer").count()
+    active_cust = total_cust
 
-    # Repeat customers (more than 1 booking)
     cust_booking_counts = db.query(
         Booking.customer_id, func.count(Booking.id)
-    ).group_by(Booking.customer_id).all()
+    ).filter(Booking.hotel_id == hotel_id).group_by(Booking.customer_id).all()
     repeat_customers = sum(1 for _, cnt in cust_booking_counts if cnt > 1)
 
     # 5. Payment methods breakdown
-    all_payments = db.query(Payment).all()
+    all_payments = db.query(Payment).filter(Payment.hotel_id == hotel_id).all()
     payment_methods_map = {}
     for p in all_payments:
         method = p.payment_method or "Unknown"
@@ -2181,14 +2298,18 @@ def admin_get_settings(
 ):
     """
     Retrieve current hotel configuration and policies (Admin only).
+    Scoped strictly to the authenticated owner's/admin's hotel_id.
     """
-    settings = db.query(HotelSetting).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    settings = db.query(Hotel).filter(Hotel.id == hotel_id).first()
     if not settings:
-        settings = HotelSetting(
+        settings = db.query(Hotel).first()
+    if not settings:
+        settings = Hotel(
             hotel_name="StayEase Hotel & Luxury Suites",
             contact_email="contact@stayease.com",
             contact_phone="+91 98765 43210",
-            hotel_address="124 Luxury Boulevard, Central District, New Delhi, 110001",
+            address="124 Luxury Boulevard, Central District, New Delhi, 110001",
             check_in_time="14:00",
             check_out_time="11:00",
             cancellation_policy="Free cancellation up to 24 hours prior to standard check-in time."
@@ -2200,12 +2321,12 @@ def admin_get_settings(
     return {
         "id": settings.id,
         "hotel_name": settings.hotel_name,
-        "contact_email": settings.contact_email,
-        "contact_phone": settings.contact_phone,
-        "hotel_address": settings.hotel_address,
-        "check_in_time": settings.check_in_time,
-        "check_out_time": settings.check_out_time,
-        "cancellation_policy": settings.cancellation_policy,
+        "contact_email": settings.hotel_email or getattr(settings, "contact_email", "") or "",
+        "contact_phone": settings.contact_number or getattr(settings, "contact_phone", "") or "",
+        "hotel_address": settings.address or getattr(settings, "hotel_address", "") or "",
+        "check_in_time": settings.check_in_time or "14:00",
+        "check_out_time": settings.check_out_time or "11:00",
+        "cancellation_policy": settings.cancellation_policy or "",
         "updated_at": settings.updated_at.isoformat() if settings.updated_at else None
     }
 
@@ -2218,20 +2339,22 @@ def admin_update_settings(
 ):
     """
     Update hotel metadata, contact information, and policies (Admin only).
+    Scoped strictly to the authenticated owner's/admin's hotel_id.
     """
-    settings = db.query(HotelSetting).first()
+    hotel_id = getattr(admin, "hotel_id", None) or 1
+    settings = db.query(Hotel).filter(Hotel.id == hotel_id).first()
     if not settings:
-        settings = HotelSetting()
+        settings = Hotel(id=hotel_id, hotel_name="My Hotel")
         db.add(settings)
 
     if data.hotel_name is not None and data.hotel_name.strip():
         settings.hotel_name = data.hotel_name.strip()
     if data.contact_email is not None and data.contact_email.strip():
-        settings.contact_email = data.contact_email.strip()
+        settings.hotel_email = data.contact_email.strip()
     if data.contact_phone is not None and data.contact_phone.strip():
-        settings.contact_phone = data.contact_phone.strip()
+        settings.contact_number = data.contact_phone.strip()
     if data.hotel_address is not None and data.hotel_address.strip():
-        settings.hotel_address = data.hotel_address.strip()
+        settings.address = data.hotel_address.strip()
     if data.check_in_time is not None and data.check_in_time.strip():
         settings.check_in_time = data.check_in_time.strip()
     if data.check_out_time is not None and data.check_out_time.strip():
@@ -2247,9 +2370,9 @@ def admin_update_settings(
         "message": "Hotel settings updated successfully.",
         "settings": {
             "hotel_name": settings.hotel_name,
-            "contact_email": settings.contact_email,
-            "contact_phone": settings.contact_phone,
-            "hotel_address": settings.hotel_address,
+            "contact_email": settings.hotel_email,
+            "contact_phone": settings.contact_number,
+            "hotel_address": settings.address,
             "check_in_time": settings.check_in_time,
             "check_out_time": settings.check_out_time,
             "cancellation_policy": settings.cancellation_policy,

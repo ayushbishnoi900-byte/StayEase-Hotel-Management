@@ -692,13 +692,14 @@
                                     <th>Staff Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
+                                    <th>Platform Role</th>
                                     <th>Designation</th>
                                     <th>Duty Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="adminStaffBody">
-                                <tr><td colspan="7" class="empty-state">Loading staff directory...</td></tr>
+                                <tr><td colspan="8" class="empty-state">Loading staff directory...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1862,6 +1863,9 @@
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive (Deactivated)</option>
                 </select>
+
+                <label>Reset Password (leave empty to keep current)</label>
+                <input type="password" id="editStaffPassword" minlength="6" placeholder="Enter new password to reset">
 
                 <button type="submit" class="submit-btn" id="editStaffSubmitBtn">Save Changes</button>
             </form>

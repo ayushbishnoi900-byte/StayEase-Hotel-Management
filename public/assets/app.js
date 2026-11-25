@@ -1278,8 +1278,14 @@ async function loadOverviewRecentBookings() {
 
 async function loadAdminRooms() {
     try {
-        const response = await fetch(API + "/rooms");
-        const rooms = await response.json();
+        let response = await authFetch("/api/rooms");
+        let rooms = [];
+        if (response.ok) {
+            rooms = await response.json();
+        } else {
+            const fallback = await fetch(API + "/rooms");
+            rooms = await fallback.json();
+        }
         adminRoomsData = rooms;
         renderAdminRoomsTable(rooms);
     } catch (error) {
@@ -1736,8 +1742,14 @@ async function toggleCustomerStatus(customerId, currentStatus) {
 
 async function loadAdminStaff() {
     try {
-        const response = await authFetch("/admin/staff");
-        const staff = await response.json();
+        let response = await authFetch("/api/staff");
+        let staff = [];
+        if (response.ok) {
+            staff = await response.json();
+        } else {
+            const fallback = await authFetch("/admin/staff");
+            staff = await fallback.json();
+        }
         adminStaffData = staff;
         renderAdminStaffTable(staff);
     } catch (error) {
@@ -1750,19 +1762,22 @@ function renderAdminStaffTable(staff) {
     if (!tbody) return;
 
     if (!Array.isArray(staff) || staff.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No staff members listed.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No staff members listed for this hotel. Use the button above to add staff accounts.</td></tr>';
         return;
     }
 
     tbody.innerHTML = staff.map(function (s) {
         const statusClass = s.status === "Active" ? "status-confirmed" : (s.status === "On Leave" ? "status-pending" : "status-cancelled");
+        const roleStr = (s.role || "staff").toLowerCase();
+        const roleBadgeClass = "role-badge role-badge-" + roleStr;
         return '<tr>' +
             '<td>#' + s.id + '</td>' +
-            '<td><strong>' + escapeHTML(s.name) + '</strong></td>' +
+            '<td><strong>' + escapeHTML(s.name || s.full_name) + '</strong></td>' +
             '<td>' + escapeHTML(s.email) + '</td>' +
             '<td>' + escapeHTML(s.phone || '-') + '</td>' +
-            '<td>' + escapeHTML(s.designation) + '</td>' +
-            '<td><span class="status-badge ' + statusClass + '">' + escapeHTML(s.status) + '</span></td>' +
+            '<td><span class="' + roleBadgeClass + '">' + escapeHTML(roleStr.toUpperCase()) + '</span></td>' +
+            '<td>' + escapeHTML(s.designation || (roleStr.charAt(0).toUpperCase() + roleStr.slice(1))) + '</td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + escapeHTML(s.status || "Active") + '</span></td>' +
             '<td>' +
                 '<div class="table-actions-group">' +
                     '<button class="action-btn edit-btn" onclick="openEditStaff(' + s.id + ')">Edit</button>' +
@@ -1776,10 +1791,15 @@ function renderAdminStaffTable(staff) {
 function filterAdminStaffTable() {
     const searchVal = (document.getElementById("adminStaffSearch").value || "").trim().toLowerCase();
     const filtered = adminStaffData.filter(function (s) {
+        const name = (s.name || s.full_name || "").toLowerCase();
+        const desig = (s.designation || "").toLowerCase();
+        const email = (s.email || "").toLowerCase();
+        const role = (s.role || "").toLowerCase();
         return !searchVal ||
-            s.name.toLowerCase().includes(searchVal) ||
-            s.designation.toLowerCase().includes(searchVal) ||
-            s.email.toLowerCase().includes(searchVal);
+            name.includes(searchVal) ||
+            desig.includes(searchVal) ||
+            email.includes(searchVal) ||
+            role.includes(searchVal);
     });
     renderAdminStaffTable(filtered);
 }
@@ -1792,22 +1812,42 @@ document.getElementById("addStaffForm").addEventListener("submit", async functio
     const submitBtn = document.getElementById("addStaffSubmitBtn");
     submitBtn.disabled = true;
 
+    const name = document.getElementById("newStaffName").value.trim();
+    const email = document.getElementById("newStaffEmail").value.trim().toLowerCase();
+    const phone = document.getElementById("newStaffPhone").value.trim();
+    const role = document.getElementById("newStaffRole").value;
+    const designation = document.getElementById("newStaffDesignation").value.trim() || (role.charAt(0).toUpperCase() + role.slice(1));
+    const password = document.getElementById("newStaffPassword").value;
+
     try {
-        const response = await authFetch("/admin/staff", {
+        const payload = {
+            full_name: name,
+            name: name,
+            email: email,
+            phone: phone,
+            role: role,
+            designation: designation,
+            department: role.charAt(0).toUpperCase() + role.slice(1),
+            password: password,
+            status: "Active"
+        };
+
+        let response = await authFetch("/api/staff", {
             method: "POST",
-            body: JSON.stringify({
-                name: document.getElementById("newStaffName").value.trim(),
-                email: document.getElementById("newStaffEmail").value.trim(),
-                phone: document.getElementById("newStaffPhone").value.trim(),
-                designation: document.getElementById("newStaffDesignation").value,
-                status: document.getElementById("newStaffStatus").value
-            })
+            body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+            response = await authFetch("/admin/staff", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+        }
 
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || "Failed to add staff");
 
-        showToast("Staff member added successfully!");
+        showToast("Staff account created for " + name + " (" + role.toUpperCase() + ")! They can now sign in with their credentials.", "success");
         closeAddStaff();
         document.getElementById("addStaffForm").reset();
         loadAdminStaff();
@@ -1823,11 +1863,15 @@ function openEditStaff(staffId) {
     if (!s) return;
 
     document.getElementById("editStaffId").value = s.id;
-    document.getElementById("editStaffName").value = s.name;
+    document.getElementById("editStaffName").value = s.name || s.full_name || "";
     document.getElementById("editStaffEmail").value = s.email;
     document.getElementById("editStaffPhone").value = s.phone || "";
-    document.getElementById("editStaffDesignation").value = s.designation;
-    document.getElementById("editStaffStatus").value = s.status;
+    const roleSelect = document.getElementById("editStaffRole");
+    if (roleSelect && s.role) roleSelect.value = s.role;
+    document.getElementById("editStaffDesignation").value = s.designation || "";
+    document.getElementById("editStaffStatus").value = s.status || "Active";
+    const pwdEl = document.getElementById("editStaffPassword");
+    if (pwdEl) pwdEl.value = "";
 
     document.getElementById("editStaffModal").style.display = "flex";
 }
@@ -1841,20 +1885,35 @@ async function submitEditStaff(event) {
     submitBtn.disabled = true;
 
     try {
-        const response = await authFetch("/admin/staff/" + staffId, {
+        const payload = {
+            full_name: document.getElementById("editStaffName").value.trim(),
+            name: document.getElementById("editStaffName").value.trim(),
+            phone: document.getElementById("editStaffPhone").value.trim(),
+            role: document.getElementById("editStaffRole").value,
+            designation: document.getElementById("editStaffDesignation").value.trim(),
+            status: document.getElementById("editStaffStatus").value
+        };
+        const pwdEl = document.getElementById("editStaffPassword");
+        if (pwdEl && pwdEl.value.trim()) {
+            payload.password = pwdEl.value.trim();
+        }
+
+        let response = await authFetch("/api/staff/" + staffId, {
             method: "PUT",
-            body: JSON.stringify({
-                name: document.getElementById("editStaffName").value.trim(),
-                phone: document.getElementById("editStaffPhone").value.trim(),
-                designation: document.getElementById("editStaffDesignation").value,
-                status: document.getElementById("editStaffStatus").value
-            })
+            body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+            response = await authFetch("/admin/staff/" + staffId, {
+                method: "PUT",
+                body: JSON.stringify(payload)
+            });
+        }
 
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || "Failed to update staff info");
 
-        showToast("Staff details updated!");
+        showToast("Staff details updated successfully!");
         closeEditStaff();
         loadAdminStaff();
     } catch (e) {
@@ -1865,14 +1924,17 @@ async function submitEditStaff(event) {
 }
 
 async function deleteStaff(staffId) {
-    if (!confirm("Remove this staff member from the directory?")) return;
+    if (!confirm("Are you sure you want to remove this staff member from your hotel?")) return;
 
     try {
-        const response = await authFetch("/admin/staff/" + staffId, { method: "DELETE" });
+        let response = await authFetch("/api/staff/" + staffId, { method: "DELETE" });
+        if (!response.ok) {
+            response = await authFetch("/admin/staff/" + staffId, { method: "DELETE" });
+        }
         const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || "Failed to delete staff");
+        if (!response.ok) throw new Error(result.detail || "Failed to remove staff");
 
-        showToast("Staff member removed.");
+        showToast("Staff account removed successfully.");
         loadAdminStaff();
     } catch (e) {
         showToast(e.message, "error");
@@ -2242,20 +2304,31 @@ function renderAnalyticsCharts(data) {
 
 async function loadAdminSettings() {
     try {
-        const response = await authFetch("/admin/settings");
+        let response = await authFetch("/api/hotel/settings");
+        if (!response.ok) {
+            response = await authFetch("/admin/settings");
+        }
         const settings = await response.json();
         if (!response.ok) throw new Error(settings.detail || "Failed to load settings");
 
-        document.getElementById("setHotelName").value = settings.hotel_name || "";
-        document.getElementById("setContactEmail").value = settings.contact_email || "";
-        document.getElementById("setContactPhone").value = settings.contact_phone || "";
-        document.getElementById("setHotelAddress").value = settings.hotel_address || "";
+        const hotelName = settings.hotel_name || "";
+        document.getElementById("setHotelName").value = hotelName;
+        document.getElementById("setContactEmail").value = settings.contact_email || settings.hotel_email || "";
+        document.getElementById("setContactPhone").value = settings.contact_phone || settings.contact_number || "";
+        document.getElementById("setHotelAddress").value = settings.hotel_address || settings.address || "";
         document.getElementById("setCheckInTime").value = settings.check_in_time || "14:00";
         document.getElementById("setCheckOutTime").value = settings.check_out_time || "11:00";
         document.getElementById("setCancellationPolicy").value = settings.cancellation_policy || "";
 
         const badge = document.getElementById("adminHotelBadge");
-        if (badge && settings.hotel_name) badge.textContent = settings.hotel_name;
+        if (badge && hotelName) badge.textContent = hotelName;
+
+        const stored = JSON.parse(localStorage.getItem("current_hotel") || "{}");
+        if (hotelName) {
+            stored.hotel_name = hotelName;
+            stored.name = hotelName;
+            localStorage.setItem("current_hotel", JSON.stringify(stored));
+        }
 
         const updatedEl = document.getElementById("settingsLastUpdated");
         if (updatedEl && settings.updated_at) {
@@ -2271,22 +2344,41 @@ async function saveHotelSettings(event) {
     const btn = document.getElementById("saveSettingsBtn");
     btn.disabled = true;
 
+    const payload = {
+        hotel_name: document.getElementById("setHotelName").value.trim(),
+        contact_email: document.getElementById("setContactEmail").value.trim(),
+        contact_phone: document.getElementById("setContactPhone").value.trim(),
+        hotel_address: document.getElementById("setHotelAddress").value.trim(),
+        check_in_time: document.getElementById("setCheckInTime").value.trim(),
+        check_out_time: document.getElementById("setCheckOutTime").value.trim(),
+        cancellation_policy: document.getElementById("setCancellationPolicy").value.trim()
+    };
+
     try {
-        const response = await authFetch("/admin/settings", {
+        let response = await authFetch("/admin/settings", {
             method: "PUT",
-            body: JSON.stringify({
-                hotel_name: document.getElementById("setHotelName").value.trim(),
-                contact_email: document.getElementById("setContactEmail").value.trim(),
-                contact_phone: document.getElementById("setContactPhone").value.trim(),
-                hotel_address: document.getElementById("setHotelAddress").value.trim(),
-                check_in_time: document.getElementById("setCheckInTime").value.trim(),
-                check_out_time: document.getElementById("setCheckOutTime").value.trim(),
-                cancellation_policy: document.getElementById("setCancellationPolicy").value.trim()
-            })
+            body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+            response = await authFetch("/api/hotel/settings", {
+                method: "PUT",
+                body: JSON.stringify(payload)
+            });
+        }
 
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || "Failed to save hotel settings");
+
+        const newName = payload.hotel_name;
+        if (newName) {
+            const stored = JSON.parse(localStorage.getItem("current_hotel") || "{}");
+            stored.hotel_name = newName;
+            stored.name = newName;
+            localStorage.setItem("current_hotel", JSON.stringify(stored));
+            const badge = document.getElementById("adminHotelBadge");
+            if (badge) badge.textContent = newName;
+        }
 
         showToast("Hotel configuration and policies updated successfully!");
         loadAdminSettings();
