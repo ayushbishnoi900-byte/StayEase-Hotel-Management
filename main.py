@@ -58,6 +58,8 @@ def ensure_database_initialized():
                     conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS housekeeping_status VARCHAR DEFAULT 'Clean';"))
                     conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS last_cleaned TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
                     conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+                    conn.execute(text("ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_room_number_key;"))
+                    conn.execute(text("ALTER TABLE rooms ADD CONSTRAINT uq_hotel_room_number UNIQUE (hotel_id, room_number);"))
                 except Exception:
                     pass
                 try:

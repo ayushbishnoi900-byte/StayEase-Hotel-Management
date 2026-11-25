@@ -3,7 +3,7 @@
 # B2B Platform for Hotel Owners and Staff
 # ==========================================
 
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym
 from datetime import datetime, timezone
 
@@ -125,6 +125,9 @@ class User(Base):
 
 class Room(Base):
     __tablename__ = "rooms"
+    __table_args__ = (
+        UniqueConstraint("hotel_id", "room_number", name="uq_hotel_room_number"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     hotel_id = Column(Integer, ForeignKey("hotels.id", ondelete="CASCADE"), nullable=False, index=True)

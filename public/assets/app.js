@@ -2672,7 +2672,13 @@ async function quickLogin(role) {
             body: JSON.stringify(cred)
         });
 
-        const result = await response.json();
+        const text = await response.text();
+        let result = {};
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            result = { detail: text || "Authentication failed" };
+        }
         if (!response.ok) throw new Error(result.detail || "Authentication failed");
 
         currentUser = result.user || result.customer;
@@ -2741,7 +2747,13 @@ async function handleOwnerRegisterSubmit(event) {
             body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
+        const text = await response.text();
+        let result = {};
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            result = { detail: text || "Registration request failed" };
+        }
         if (!response.ok) throw new Error(result.detail || "Registration failed");
 
         currentUser = result.user;
